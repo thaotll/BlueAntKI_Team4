@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portfolio Analyzer</title>
+    <link rel="stylesheet" href="styles/variables.css">
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/components.css">
+</head>
+<body>
+    <div class="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <h1 class="header-title">Portfolio Analyzer</h1>
+                <button id="settings-btn" class="btn btn-icon" title="Einstellungen">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                    </svg>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main">
+            <!-- Sidebar -->
+            <aside class="sidebar">
+                <!-- Search Section -->
+                <section class="card">
+                    <h2 class="card-title">Portfolio suchen</h2>
+                    <div class="search-form">
+                        <input
+                            type="text"
+                            id="search-input"
+                            class="input"
+                            placeholder="Portfolio-Name eingeben..."
+                        >
+                        <button id="search-btn" class="btn btn-primary">Suchen</button>
+                    </div>
+                    <div id="search-results" class="search-results"></div>
+                </section>
+
+                <!-- Selected Portfolio -->
+                <section class="card" id="selected-section" style="display: none;">
+                    <h2 class="card-title">Ausgewähltes Portfolio</h2>
+                    <div id="selected-portfolio" class="selected-portfolio"></div>
+                    <button id="analyze-btn" class="btn btn-primary btn-full">
+                        Analyse starten
+                    </button>
+                </section>
+            </aside>
+
+            <!-- Results Area -->
+            <section class="results" id="results">
+                <div class="empty-state">
+                    <div class="empty-state-icon">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                        </svg>
+                    </div>
+                    <h3>Kein Portfolio ausgewählt</h3>
+                    <p>Suche ein Portfolio und starte die Analyse</p>
+                </div>
+            </section>
+        </main>
+
+        <!-- Settings Modal -->
+        <div id="settings-modal" class="modal" style="display: none;">
+            <div class="modal-backdrop"></div>
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Einstellungen</h2>
+                    <button id="settings-close" class="btn btn-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M18 6L6 18M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="blueant-url">BlueAnt URL</label>
+                        <input type="text" id="blueant-url" class="input" placeholder="https://your-instance.blueant.cloud/rest">
+                    </div>
+                    <div class="form-group">
+                        <label for="blueant-key">BlueAnt API Key</label>
+                        <input type="password" id="blueant-key" class="input" placeholder="API Key eingeben">
+                    </div>
+                    <div class="form-group">
+                        <label for="gemini-key">Gemini API Key</label>
+                        <input type="password" id="gemini-key" class="input" placeholder="API Key eingeben">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button id="settings-save" class="btn btn-primary">Speichern</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading Overlay -->
+        <div id="loading" class="loading-overlay" style="display: none;">
+            <div class="loading-spinner"></div>
+            <p>Analysiere Portfolio...</p>
+        </div>
+    </div>
+
+    <script type="module" src="js/app.js"></script>
+</body>
+</html>
