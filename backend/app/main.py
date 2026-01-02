@@ -7,7 +7,7 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import analysis, portfolios
+from app.api import analysis, portfolios, reports
 from app.config import get_settings
 
 # Configure logging
@@ -37,6 +37,7 @@ app.add_middleware(
 # Register routers
 app.include_router(portfolios.router)
 app.include_router(analysis.router)
+app.include_router(reports.router)
 
 
 @app.get("/")

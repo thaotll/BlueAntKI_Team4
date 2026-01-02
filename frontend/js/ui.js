@@ -52,13 +52,23 @@ export function renderSelectedPortfolio(portfolio, container) {
  * @param {Object} analysis - Portfolio analysis result
  * @param {HTMLElement} container - Container element
  */
-export function renderAnalysisResults(analysis, container) {
+export function renderAnalysisResults(analysis, container, onDownloadReport) {
     const { project_scores, executive_summary, recommendations, risk_clusters } = analysis;
 
     container.innerHTML = `
         <div class="analysis-header">
-            <h2 class="analysis-title">${escapeHtml(analysis.portfolio_name)}</h2>
-            <div class="analysis-meta">${project_scores.length} Projekte analysiert</div>
+            <div>
+                <h2 class="analysis-title">${escapeHtml(analysis.portfolio_name)}</h2>
+                <div class="analysis-meta">${project_scores.length} Projekte analysiert</div>
+            </div>
+            <button id="download-report-btn" class="btn btn-primary">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+                Report (PPTX)
+            </button>
         </div>
 
         <!-- Executive Summary -->
@@ -102,6 +112,14 @@ export function renderAnalysisResults(analysis, container) {
             ${project_scores.map(p => renderProjectCard(p)).join('')}
         </div>
     `;
+
+    // Bind download button handler
+    if (onDownloadReport) {
+        const downloadBtn = document.getElementById('download-report-btn');
+        if (downloadBtn) {
+            downloadBtn.addEventListener('click', () => onDownloadReport(analysis));
+        }
+    }
 }
 
 /**

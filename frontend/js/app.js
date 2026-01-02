@@ -115,7 +115,7 @@ async function handleAnalyze() {
         const result = await api.analyzePortfolio(selectedPortfolio.id);
 
         if (result.success && result.analysis) {
-            ui.renderAnalysisResults(result.analysis, resultsContainer);
+            ui.renderAnalysisResults(result.analysis, resultsContainer, handleDownloadReport);
         } else {
             ui.showError(result.error || 'Analyse fehlgeschlagen', resultsContainer);
         }
@@ -125,6 +125,52 @@ async function handleAnalyze() {
     } finally {
         ui.hideLoading();
         analyzeBtn.disabled = false;
+    }
+}
+
+/**
+ * Handle report download.
+ */
+async function handleDownloadReport(analysis) {
+    const downloadBtn = document.getElementById('download-report-btn');
+    if (downloadBtn) {
+        downloadBtn.disabled = true;
+        downloadBtn.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px; animation: spin 1s linear infinite;">
+                <circle cx="12" cy="12" r="10"></circle>
+            </svg>
+            Generiere...
+        `;
+    }
+
+    try {
+        const blob = await api.generateReport(analysis);
+
+        // Create download link
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${analysis.portfolio_name}_Report.pptx`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+    } catch (error) {
+        console.error('Report generation error:', error);
+        alert(`Fehler beim Generieren des Reports: ${error.message}`);
+    } finally {
+        if (downloadBtn) {
+            downloadBtn.disabled = false;
+            downloadBtn.innerHTML = `
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+                Report (PPTX)
+            `;
+        }
     }
 }
 
