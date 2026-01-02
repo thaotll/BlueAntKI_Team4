@@ -49,6 +49,17 @@ body {
     padding: 0 var(--space-6);
 }
 
+.header-brand {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+}
+
+.header-logo {
+    height: 32px;
+    width: auto;
+}
+
 .header-title {
     font-size: var(--text-xl);
     font-weight: 600;
