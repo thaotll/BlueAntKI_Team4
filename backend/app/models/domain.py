@@ -5,7 +5,7 @@ These models represent cleaned, structured project data ready for LLM analysis.
 
 from datetime import date, datetime
 from enum import Enum
-from typing import Optional
+from typing import List, Optional, Union
 
 from pydantic import BaseModel, Field
 
@@ -94,7 +94,7 @@ class NormalizedProject(BaseModel):
     )
 
     # Milestones
-    milestones: list[NormalizedMilestone] = Field(
+    milestones: List[NormalizedMilestone] = Field(
         default_factory=list, description="List of project milestones"
     )
     milestones_total: int = Field(default=0, description="Total number of milestones")
@@ -122,7 +122,7 @@ class NormalizedProject(BaseModel):
         default=False,
         description="Heuristic flag indicating potential criticality",
     )
-    criticality_reasons: list[str] = Field(
+    criticality_reasons: List[str] = Field(
         default_factory=list,
         description="Reasons why project may be critical",
     )
@@ -145,18 +145,18 @@ class NormalizedPortfolio(BaseModel):
     """Normalized portfolio with all projects and aggregated metrics."""
 
     # Identifiers
-    id: str | int = Field(..., description="Portfolio identifier")
+    id: Union[str, int] = Field(..., description="Portfolio identifier")
     name: str = Field(..., description="Portfolio name")
     description: Optional[str] = Field(None, description="Portfolio description")
     owner_name: Optional[str] = Field(None, description="Portfolio owner name")
 
     # Projects
-    projects: list[NormalizedProject] = Field(
+    projects: List[NormalizedProject] = Field(
         default_factory=list, description="List of normalized projects"
     )
 
     # Aggregations
-    projects_per_status: list[ProjectsPerStatus] = Field(
+    projects_per_status: List[ProjectsPerStatus] = Field(
         default_factory=list, description="Project count per status"
     )
     total_projects: int = Field(default=0, description="Total number of projects")
@@ -176,7 +176,7 @@ class NormalizedPortfolio(BaseModel):
     critical_projects_count: int = Field(
         default=0, description="Number of potentially critical projects"
     )
-    critical_project_ids: list[str] = Field(
+    critical_project_ids: List[str] = Field(
         default_factory=list, description="IDs of critical projects"
     )
 

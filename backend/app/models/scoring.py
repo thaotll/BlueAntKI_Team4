@@ -2,7 +2,7 @@
 Pydantic models for U/I/C/R/DQ scoring results.
 """
 
-from typing import Optional
+from typing import List, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -107,7 +107,7 @@ class PortfolioAnalysis(BaseModel):
     portfolio_name: str = Field(..., description="Portfolio name")
 
     # Project Scores
-    project_scores: list[ProjectScore] = Field(
+    project_scores: List[ProjectScore] = Field(
         default_factory=list, description="Individual project scores"
     )
 
@@ -115,19 +115,19 @@ class PortfolioAnalysis(BaseModel):
     executive_summary: str = Field(
         default="", description="Management-ready portfolio summary"
     )
-    critical_projects: list[str] = Field(
+    critical_projects: List[str] = Field(
         default_factory=list,
         description="List of project IDs identified as critical",
     )
-    priority_ranking: list[str] = Field(
+    priority_ranking: List[str] = Field(
         default_factory=list,
         description="Project IDs sorted by priority (highest first)",
     )
-    risk_clusters: list[str] = Field(
+    risk_clusters: List[str] = Field(
         default_factory=list,
         description="Identified risk clusters or patterns",
     )
-    recommendations: list[str] = Field(
+    recommendations: List[str] = Field(
         default_factory=list,
         description="Actionable recommendations for portfolio management",
     )

@@ -2,7 +2,7 @@
 API request/response schemas.
 """
 
-from typing import Optional
+from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -42,7 +42,7 @@ class PortfolioSearchResponse(BaseModel):
     """Response from portfolio search."""
 
     success: bool
-    portfolios: list[PortfolioSummary] = Field(default_factory=list)
+    portfolios: List[PortfolioSummary] = Field(default_factory=list)
     error: Optional[str] = None
 
 

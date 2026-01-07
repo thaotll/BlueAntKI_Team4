@@ -115,7 +115,7 @@ async function handleAnalyze() {
         const result = await api.analyzePortfolio(selectedPortfolio.id);
 
         if (result.success && result.analysis) {
-            ui.renderAnalysisResults(result.analysis, resultsContainer, handleDownloadReport);
+            ui.renderAnalysisResults(result.analysis, resultsContainer, handleDownloadReport, handleDownloadWordReport);
         } else {
             ui.showError(result.error || 'Analyse fehlgeschlagen', resultsContainer);
         }
@@ -129,7 +129,7 @@ async function handleAnalyze() {
 }
 
 /**
- * Handle report download.
+ * Handle PowerPoint report download.
  */
 async function handleDownloadReport(analysis) {
     const downloadBtn = document.getElementById('download-report-btn');
@@ -139,7 +139,7 @@ async function handleDownloadReport(analysis) {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px; animation: spin 1s linear infinite;">
                 <circle cx="12" cy="12" r="10"></circle>
             </svg>
-            Generiere...
+            ...
         `;
     }
 
@@ -168,7 +168,55 @@ async function handleDownloadReport(analysis) {
                     <polyline points="7 10 12 15 17 10"></polyline>
                     <line x1="12" y1="15" x2="12" y2="3"></line>
                 </svg>
-                Report (PPTX)
+                PPTX
+            `;
+        }
+    }
+}
+
+/**
+ * Handle Word document report download.
+ */
+async function handleDownloadWordReport(analysis) {
+    const downloadBtn = document.getElementById('download-word-btn');
+    if (downloadBtn) {
+        downloadBtn.disabled = true;
+        downloadBtn.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px; animation: spin 1s linear infinite;">
+                <circle cx="12" cy="12" r="10"></circle>
+            </svg>
+            ...
+        `;
+    }
+
+    try {
+        const blob = await api.generateWordReport(analysis);
+
+        // Create download link
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${analysis.portfolio_name}_Report.docx`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+    } catch (error) {
+        console.error('Word report generation error:', error);
+        alert(`Fehler beim Generieren des Word-Reports: ${error.message}`);
+    } finally {
+        if (downloadBtn) {
+            downloadBtn.disabled = false;
+            downloadBtn.innerHTML = `
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                    <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>
+                DOCX
             `;
         }
     }

@@ -3,6 +3,8 @@ Prompt templates for Gemini LLM scoring.
 Contains the U/I/C/R/DQ scoring definitions on the 1-5 scale.
 """
 
+from typing import List
+
 SYSTEM_PROMPT = """Du bist ein erfahrener Projektportfolio-Analyst. Deine Aufgabe ist es, Projektdaten aus dem Projektmanagement-Tool BlueAnt zu analysieren und strukturiert zu bewerten.
 
 ## Deine Rolle
@@ -201,7 +203,7 @@ def format_project_for_prompt(project_data: dict) -> str:
     return "\n".join(lines)
 
 
-def format_scores_for_portfolio_prompt(scores: list[dict]) -> str:
+def format_scores_for_portfolio_prompt(scores: List[dict]) -> str:
     """Format project scores for the portfolio analysis prompt."""
     lines = []
     for score in scores:

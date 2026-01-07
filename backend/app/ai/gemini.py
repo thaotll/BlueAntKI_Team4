@@ -5,7 +5,7 @@ Gemini LLM client for project scoring and portfolio analysis.
 import json
 import logging
 import re
-from typing import Optional
+from typing import List, Optional
 
 import google.generativeai as genai
 
@@ -106,16 +106,16 @@ class GeminiService:
 
     async def score_projects(
         self,
-        projects: list[NormalizedProject],
+        projects: List[NormalizedProject],
         batch_size: int = 10,
-    ) -> list[ProjectScore]:
+    ) -> List[ProjectScore]:
         """
         Phase 1: Score multiple projects using Gemini.
         """
         if not self.api_key:
             raise GeminiError("Gemini API key not configured")
 
-        all_scores: list[ProjectScore] = []
+        all_scores: List[ProjectScore] = []
 
         for i in range(0, len(projects), batch_size):
             batch = projects[i : i + batch_size]
@@ -162,7 +162,7 @@ class GeminiService:
     async def analyze_portfolio(
         self,
         portfolio: NormalizedPortfolio,
-        project_scores: list[ProjectScore],
+        project_scores: List[ProjectScore],
     ) -> PortfolioAnalysis:
         """
         Phase 2: Generate portfolio-level analysis based on project scores.
@@ -205,7 +205,7 @@ class GeminiService:
 
     def _enrich_scores_with_normalized_data(
         self,
-        project_scores: list[ProjectScore],
+        project_scores: List[ProjectScore],
         portfolio: NormalizedPortfolio,
     ) -> None:
         """Enrich ProjectScore objects with data from NormalizedProject."""

@@ -5,6 +5,7 @@ Pure rendering logic - no business/content decisions.
 
 import logging
 from io import BytesIO
+from typing import Optional
 
 from pptx import Presentation
 from pptx.util import Inches, Pt
@@ -132,7 +133,7 @@ class PptxRenderer:
         self,
         para,
         para_model: TextParagraph,
-        default_style: TextStyle | None,
+        default_style: Optional[TextStyle],
     ) -> None:
         """Render a paragraph with its text runs."""
         para.alignment = self.ALIGNMENT_MAP.get(para_model.alignment, PP_ALIGN.LEFT)

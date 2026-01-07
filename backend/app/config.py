@@ -5,6 +5,7 @@ Loads values from environment variables / .env file.
 
 from functools import lru_cache
 from pathlib import Path
+from typing import List
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -38,7 +39,7 @@ class Settings(BaseSettings):
     log_level: str = "info"
 
     # CORS
-    cors_origins: list[str] = ["*"]
+    cors_origins: List[str] = ["*"]
 
     @property
     def is_production(self) -> bool:

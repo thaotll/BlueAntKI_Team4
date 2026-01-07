@@ -7,7 +7,7 @@ import logging
 import re
 from collections import Counter
 from datetime import date, datetime
-from typing import Optional
+from typing import List, Optional, Tuple
 
 from app.models.blueant import (
     BlueAntPlanningEntry,
@@ -39,12 +39,12 @@ class DataNormalizer:
     - Compute derived indicators (criticality, delays)
     """
 
-    def __init__(self, status_masterdata: Optional[list[BlueAntStatus]] = None):
+    def __init__(self, status_masterdata: Optional[List[BlueAntStatus]] = None):
         self.status_map: dict[str, BlueAntStatus] = {}
         if status_masterdata:
             self.status_map = {s.id: s for s in status_masterdata}
 
-    def set_status_masterdata(self, status_masterdata: list[BlueAntStatus]) -> None:
+    def set_status_masterdata(self, status_masterdata: List[BlueAntStatus]) -> None:
         """Update status masterdata mapping."""
         self.status_map = {s.id: s for s in status_masterdata}
 
@@ -93,7 +93,7 @@ class DataNormalizer:
 
     def get_status_info(
         self, status_id: Optional[str]
-    ) -> tuple[Optional[str], StatusColor]:
+    ) -> Tuple[Optional[str], StatusColor]:
         """Get status label and color from status ID."""
         if not status_id or status_id not in self.status_map:
             return None, StatusColor.GRAY
@@ -158,7 +158,7 @@ class DataNormalizer:
     def normalize_project(
         self,
         project: BlueAntProject,
-        planning_entries: Optional[list[BlueAntPlanningEntry]] = None,
+        planning_entries: Optional[List[BlueAntPlanningEntry]] = None,
     ) -> NormalizedProject:
         """Transform raw BlueAnt project into normalized structure."""
         entries = planning_entries or []
@@ -251,10 +251,10 @@ class DataNormalizer:
     def normalize_portfolio(
         self,
         portfolio: BlueAntPortfolio,
-        projects: list[NormalizedProject],
+        projects: List[NormalizedProject],
     ) -> NormalizedPortfolio:
         """Create normalized portfolio from portfolio entity and normalized projects."""
-        status_counter: Counter[tuple[str, StatusColor]] = Counter()
+        status_counter: Counter[Tuple[str, StatusColor]] = Counter()
         for p in projects:
             key = (p.status_label or "Unknown", p.status_color)
             status_counter[key] += 1
@@ -292,7 +292,7 @@ class DataNormalizer:
 
 
 def get_normalizer(
-    status_masterdata: Optional[list[BlueAntStatus]] = None,
+    status_masterdata: Optional[List[BlueAntStatus]] = None,
 ) -> DataNormalizer:
     """Get a DataNormalizer instance."""
     return DataNormalizer(status_masterdata)

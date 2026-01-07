@@ -4,7 +4,7 @@ Wraps all API calls to BlueAnt for fetching project portfolio data.
 """
 
 import logging
-from typing import Optional
+from typing import List, Optional, Union
 
 import httpx
 
@@ -67,7 +67,7 @@ class BlueAntService:
         endpoint: str,
         params: Optional[dict] = None,
         json_data: Optional[dict] = None,
-    ) -> dict | list:
+    ) -> Union[dict, list]:
         """Execute HTTP request to BlueAnt API."""
         url = f"{self.base_url}{endpoint}"
         logger.debug(f"BlueAnt API request: {method} {url}")
@@ -102,14 +102,14 @@ class BlueAntService:
     # Portfolio Endpoints
     # =========================================================================
 
-    async def get_portfolio(self, portfolio_id: str | int) -> BlueAntPortfolio:
+    async def get_portfolio(self, portfolio_id: Union[str, int]) -> BlueAntPortfolio:
         """Fetch portfolio by ID."""
         data = await self._request("GET", f"/v1/portfolios/{portfolio_id}")
         if isinstance(data, dict) and "portfolio" in data:
             return BlueAntPortfolio.model_validate(data["portfolio"])
         return BlueAntPortfolio.model_validate(data)
 
-    async def get_all_portfolios(self) -> list[BlueAntPortfolio]:
+    async def get_all_portfolios(self) -> List[BlueAntPortfolio]:
         """Fetch all portfolios."""
         data = await self._request("GET", "/v1/portfolios")
 
@@ -121,13 +121,13 @@ class BlueAntService:
             return [BlueAntPortfolio.model_validate(p) for p in data["items"]]
         return []
 
-    async def search_portfolios(self, name: str) -> list[BlueAntPortfolio]:
+    async def search_portfolios(self, name: str) -> List[BlueAntPortfolio]:
         """Search portfolios by name (case-insensitive partial match)."""
         portfolios = await self.get_all_portfolios()
         name_lower = name.lower()
         return [p for p in portfolios if name_lower in p.name.lower()]
 
-    async def get_portfolio_projects(self, portfolio_id: str) -> list[BlueAntProject]:
+    async def get_portfolio_projects(self, portfolio_id: str) -> List[BlueAntProject]:
         """Fetch all projects belonging to a portfolio."""
         try:
             portfolio = await self.get_portfolio(portfolio_id)
@@ -158,14 +158,14 @@ class BlueAntService:
     # Project Endpoints
     # =========================================================================
 
-    async def get_project(self, project_id: str | int) -> BlueAntProject:
+    async def get_project(self, project_id: Union[str, int]) -> BlueAntProject:
         """Fetch single project by ID."""
         data = await self._request("GET", f"/v1/projects/{project_id}")
         if isinstance(data, dict) and "project" in data:
             return BlueAntProject.model_validate(data["project"])
         return BlueAntProject.model_validate(data)
 
-    async def get_all_projects(self) -> list[BlueAntProject]:
+    async def get_all_projects(self) -> List[BlueAntProject]:
         """Fetch all projects."""
         data = await self._request("GET", "/v1/projects")
 
@@ -182,8 +182,8 @@ class BlueAntService:
     # =========================================================================
 
     async def get_project_planning_entries(
-        self, project_id: str | int
-    ) -> list[BlueAntPlanningEntry]:
+        self, project_id: Union[str, int]
+    ) -> List[BlueAntPlanningEntry]:
         """Fetch planning entries for a project."""
         data = await self._request(
             "GET", f"/v1/projects/{project_id}/planningentries"
@@ -201,7 +201,7 @@ class BlueAntService:
     # Status Masterdata
     # =========================================================================
 
-    async def get_status_masterdata(self) -> list[BlueAntStatus]:
+    async def get_status_masterdata(self) -> List[BlueAntStatus]:
         """Fetch status masterdata (traffic light definitions)."""
         data = await self._request("GET", "/v1/masterdata/projects/statuses")
 

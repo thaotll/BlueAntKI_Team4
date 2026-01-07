@@ -18,3 +18,6 @@ python-multipart==0.0.18
 
 # PowerPoint Generation
 python-pptx==0.6.23
+
+# Word Document Generation
+python-docx==1.1.2

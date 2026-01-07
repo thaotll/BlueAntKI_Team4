@@ -4,7 +4,7 @@ These models map directly to the JSON structures returned by BlueAnt REST API.
 """
 
 from datetime import date, datetime
-from typing import Optional
+from typing import List, Optional, Union
 
 from pydantic import BaseModel, Field
 
@@ -20,27 +20,27 @@ class BlueAntProject(BaseModel):
     Contains status text, scope/subject, and status fields.
     """
 
-    id: int | str = Field(..., description="Unique project identifier")
+    id: Union[int, str] = Field(..., description="Unique project identifier")
     name: str = Field(..., description="Project name")
     number: Optional[str] = Field(None, description="Project number")
     description: Optional[str] = Field(None, description="Project description / scope")
     status_text: Optional[str] = Field(
         None, alias="statusText", description="Free-text status field"
     )
-    status_id: Optional[int | str] = Field(
+    status_id: Optional[Union[int, str]] = Field(
         None, alias="statusId", description="Reference to status masterdata"
     )
     type_id: Optional[int] = Field(None, alias="typeId", description="Project type ID")
     priority_id: Optional[int] = Field(None, alias="priorityId", description="Priority ID")
     department_id: Optional[int] = Field(None, alias="departmentId", description="Department ID")
-    owner_id: Optional[int | str] = Field(None, alias="ownerId", description="Project owner ID")
+    owner_id: Optional[Union[int, str]] = Field(None, alias="ownerId", description="Project owner ID")
     owner_name: Optional[str] = Field(
         None, alias="ownerName", description="Project owner name"
     )
     project_leader_id: Optional[int] = Field(
         None, alias="projectLeaderId", description="Project leader ID"
     )
-    portfolio_ids: Optional[list[int]] = Field(
+    portfolio_ids: Optional[List[int]] = Field(
         None, alias="portfolioIds", description="Associated portfolio IDs"
     )
     portfolio_id: Optional[str] = Field(
@@ -94,7 +94,7 @@ class BlueAntPlanningEntry(BaseModel):
     Planning entry representing effort planning, milestones, or forecasts.
     """
 
-    id: int | str = Field(..., description="Planning entry ID")
+    id: Union[int, str] = Field(..., description="Planning entry ID")
     number: Optional[str] = Field(None, description="Entry number (e.g. '1.1')")
     name: Optional[str] = Field(None, description="Entry name / milestone name")
     description: Optional[str] = Field(None, description="Entry description")
@@ -242,7 +242,7 @@ class BlueAntStatus(BaseModel):
 class BlueAntPortfolio(BaseModel):
     """Portfolio entity containing a collection of projects."""
 
-    id: int | str = Field(..., description="Portfolio ID")
+    id: Union[int, str] = Field(..., description="Portfolio ID")
     name: str = Field(..., description="Portfolio name")
     number: Optional[str] = Field(None, description="Portfolio number")
     description: Optional[str] = Field(None, description="Portfolio description")
@@ -252,7 +252,7 @@ class BlueAntPortfolio(BaseModel):
     owner_name: Optional[str] = Field(
         None, alias="ownerName", description="Portfolio owner name"
     )
-    project_ids: list[int | str] = Field(
+    project_ids: List[Union[int, str]] = Field(
         default_factory=list,
         alias="projectIds",
         description="List of project IDs in this portfolio",

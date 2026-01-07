@@ -4,7 +4,7 @@ Data-driven approach: models define WHAT to render, not HOW.
 """
 
 from enum import Enum
-from typing import Optional, Union, Literal
+from typing import List, Literal, Optional, Union
 
 from pydantic import BaseModel, Field
 
@@ -66,7 +66,7 @@ class TextRun(BaseModel):
 class TextParagraph(BaseModel):
     """A paragraph containing one or more text runs."""
 
-    runs: list[TextRun] = Field(default_factory=list)
+    runs: List[TextRun] = Field(default_factory=list)
     alignment: Literal["left", "center", "right"] = "left"
     space_after_pt: int = 0
 
@@ -86,7 +86,7 @@ class TextBoxShape(BaseModel):
 
     shape_type: Literal["textbox"] = "textbox"
     position: Position
-    paragraphs: list[TextParagraph] = Field(default_factory=list)
+    paragraphs: List[TextParagraph] = Field(default_factory=list)
     default_style: Optional[TextStyle] = None  # Applied to runs without explicit style
 
 
@@ -130,7 +130,7 @@ class PptxSlideModel(BaseModel):
     """A single slide in the presentation."""
 
     layout: SlideLayout = SlideLayout.BLANK
-    shapes: list[ShapeModel] = Field(default_factory=list)
+    shapes: List[ShapeModel] = Field(default_factory=list)
     notes: Optional[str] = None  # Speaker notes
 
 
@@ -143,7 +143,7 @@ class PptxPresentationModel(BaseModel):
     """Complete presentation model."""
 
     title: str = Field(..., description="Presentation title (for metadata)")
-    slides: list[PptxSlideModel] = Field(default_factory=list)
+    slides: List[PptxSlideModel] = Field(default_factory=list)
 
     # Presentation settings (16:9 widescreen default)
     width_inches: float = 13.333

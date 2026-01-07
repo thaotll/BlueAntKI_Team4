@@ -3,6 +3,7 @@ Portfolio API endpoints.
 """
 
 import logging
+from typing import Optional
 
 from fastapi import APIRouter, HTTPException
 
@@ -19,7 +20,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/portfolios", tags=["Portfolios"])
 
 
-def _get_blueant(custom_config: CustomConfig | None) -> BlueAntService:
+def _get_blueant(custom_config: Optional[CustomConfig]) -> BlueAntService:
     """Get BlueAnt service with optional custom config."""
     if custom_config and (custom_config.blueant_url or custom_config.blueant_key):
         return BlueAntService(

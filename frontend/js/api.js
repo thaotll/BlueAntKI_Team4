@@ -106,6 +106,29 @@ export async function generateReport(analysis, language = 'de') {
 }
 
 /**
+ * Generate Word document report from analysis.
+ * @param {Object} analysis - Portfolio analysis data
+ * @param {string} language - Report language (de or en)
+ * @returns {Promise<Blob>} DOCX file as blob
+ */
+export async function generateWordReport(analysis, language = 'de') {
+    const response = await fetch(`${API_BASE}/api/reports/docx`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            analysis,
+            options: { language },
+        }),
+    });
+
+    if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    return response.blob();
+}
+
+/**
  * Save config to localStorage.
  * @param {Object} config - Configuration object
  */

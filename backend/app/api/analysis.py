@@ -4,6 +4,7 @@ Analysis API endpoints.
 
 import logging
 from datetime import datetime, timezone
+from typing import Optional, Tuple
 
 from fastapi import APIRouter
 
@@ -17,7 +18,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["Analysis"])
 
 
-def _get_services(custom_config: CustomConfig | None) -> tuple[BlueAntService, GeminiService]:
+def _get_services(custom_config: Optional[CustomConfig]) -> Tuple[BlueAntService, GeminiService]:
     """Get services with optional custom config."""
     if custom_config and (custom_config.blueant_url or custom_config.blueant_key):
         blueant = BlueAntService(
