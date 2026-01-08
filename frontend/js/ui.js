@@ -227,8 +227,8 @@ export function renderSelectedPortfolio(portfolio, container) {
 export function renderAnalysisResults(analysis, container, onDownloadReport, onDownloadWordReport, onDownloadDetailedReport) {
     const { project_scores, executive_summary, recommendations } = analysis;
     
-    // Limit recommendations to 3 (like in Word document)
-    const topRecommendations = recommendations ? recommendations.slice(0, 3) : [];
+    // Show all recommendations
+    const allRecommendations = recommendations || [];
 
     container.innerHTML = `
         <div class="analysis-header">
@@ -291,12 +291,12 @@ export function renderAnalysisResults(analysis, container, onDownloadReport, onD
             ${project_scores.map((p, idx) => renderProjectDetailCard(p, idx)).join('')}
         </div>
 
-        <!-- Recommendations (like Word document: max 3, short) -->
-        ${topRecommendations.length > 0 ? `
+        <!-- Recommendations -->
+        ${allRecommendations.length > 0 ? `
             <div class="card" style="margin-top: var(--space-6);">
                 <h3 class="card-title">Handlungsempfehlungen</h3>
                 <ol class="recommendations-list">
-                    ${topRecommendations.map(r => `<li>${escapeHtml(r)}</li>`).join('')}
+                    ${allRecommendations.map(r => `<li>${escapeHtml(r)}</li>`).join('')}
                 </ol>
             </div>
         ` : ''}

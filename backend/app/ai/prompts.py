@@ -162,9 +162,10 @@ Erstelle eine ausführliche, Management-taugliche Portfolioanalyse. Der Report s
    - Gibt es übergreifende Probleme (z.B. Ressourcenengpässe, Datenqualitätsprobleme)?
    - Welche systemischen Risiken bestehen?
 
-4. **Handlungsempfehlungen** (maximal 3 priorisierte Empfehlungen):
-   - Nur die wichtigsten Maßnahmen
+4. **Handlungsempfehlungen** (5-8 priorisierte Empfehlungen):
+   - Konkrete, umsetzbare Maßnahmen
    - Kurz und prägnant formuliert (1 Satz pro Empfehlung)
+   - Nach Priorität sortiert
 
 ## Antwortformat
 
@@ -179,9 +180,12 @@ Antworte NUR mit einem validen JSON-Objekt im folgenden Format:
     "Kurze Beschreibung Risikomuster 2 (1 Satz)"
   ],
   "recommendations": [
-    "Wichtigste Handlungsempfehlung 1 (1 Satz)",
-    "Wichtigste Handlungsempfehlung 2 (1 Satz)",
-    "Wichtigste Handlungsempfehlung 3 (1 Satz)"
+    "Handlungsempfehlung 1 - höchste Priorität (1 Satz)",
+    "Handlungsempfehlung 2 (1 Satz)",
+    "Handlungsempfehlung 3 (1 Satz)",
+    "Handlungsempfehlung 4 (1 Satz)",
+    "Handlungsempfehlung 5 (1 Satz)",
+    "... weitere nach Bedarf"
   ]
 }}
 

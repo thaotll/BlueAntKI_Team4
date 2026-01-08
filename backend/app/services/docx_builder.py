@@ -286,7 +286,7 @@ class DocxBuilder:
             return None
 
     def _build_recommendations_section(self) -> DocxSection:
-        """Build recommendations section - limited to top 3 recommendations."""
+        """Build recommendations section with all recommendations."""
         section = DocxSection(
             heading=DocxHeading(
                 text=self._get_label("recommendations"),
@@ -295,12 +295,10 @@ class DocxBuilder:
             )
         )
 
-        # Limit to max 3 recommendations for brevity
-        top_recommendations = self.analysis.recommendations[:3]
-        
+        # Show all recommendations
         rec_items = [
             DocxListItem(text=rec, bold=False)
-            for rec in top_recommendations
+            for rec in self.analysis.recommendations
         ]
 
         if rec_items:
