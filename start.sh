@@ -1,0 +1,146 @@
+#!/bin/bash
+
+# ============================================
+# BlueAnt Portfolio Analyzer - Startskript
+# Für macOS / Linux
+# ============================================
+
+# Farben für bessere Lesbarkeit
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Aktuelles Verzeichnis des Skripts ermitteln
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+BACKEND_DIR="$SCRIPT_DIR/backend"
+FRONTEND_DIR="$SCRIPT_DIR/frontend"
+
+echo ""
+echo -e "${BLUE}============================================${NC}"
+echo -e "${BLUE}   BlueAnt Portfolio Analyzer${NC}"
+echo -e "${BLUE}============================================${NC}"
+echo ""
+
+# Prüfen ob Python installiert ist
+if ! command -v python3 &> /dev/null; then
+    echo -e "${RED}❌ Fehler: Python3 ist nicht installiert!${NC}"
+    echo "Bitte installiere Python3 von https://www.python.org/downloads/"
+    echo ""
+    read -p "Drücke Enter zum Beenden..."
+    exit 1
+fi
+
+echo -e "${GREEN}✓ Python3 gefunden${NC}"
+
+# Ins Backend-Verzeichnis wechseln
+cd "$BACKEND_DIR" || {
+    echo -e "${RED}❌ Fehler: Backend-Verzeichnis nicht gefunden!${NC}"
+    read -p "Drücke Enter zum Beenden..."
+    exit 1
+}
+
+# Prüfen ob Virtual Environment existiert
+if [ ! -d "venv" ]; then
+    echo -e "${YELLOW}⚙ Virtual Environment wird erstellt...${NC}"
+    python3 -m venv venv
+    
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}❌ Fehler beim Erstellen des Virtual Environment!${NC}"
+        read -p "Drücke Enter zum Beenden..."
+        exit 1
+    fi
+    echo -e "${GREEN}✓ Virtual Environment erstellt${NC}"
+fi
+
+# Virtual Environment aktivieren
+echo -e "${YELLOW}⚙ Virtual Environment wird aktiviert...${NC}"
+source venv/bin/activate
+
+if [ $? -ne 0 ]; then
+    echo -e "${RED}❌ Fehler beim Aktivieren des Virtual Environment!${NC}"
+    read -p "Drücke Enter zum Beenden..."
+    exit 1
+fi
+echo -e "${GREEN}✓ Virtual Environment aktiviert${NC}"
+
+# Abhängigkeiten installieren (falls nötig)
+echo -e "${YELLOW}⚙ Abhängigkeiten werden geprüft...${NC}"
+pip install -r requirements.txt -q
+
+if [ $? -ne 0 ]; then
+    echo -e "${RED}❌ Fehler beim Installieren der Abhängigkeiten!${NC}"
+    read -p "Drücke Enter zum Beenden..."
+    exit 1
+fi
+echo -e "${GREEN}✓ Abhängigkeiten installiert${NC}"
+
+# Prüfen ob .env existiert
+if [ ! -f ".env" ]; then
+    echo -e "${YELLOW}⚠ Hinweis: Keine .env Datei gefunden.${NC}"
+    echo -e "${YELLOW}  Bitte erstelle eine .env Datei basierend auf .env.example${NC}"
+    echo ""
+fi
+
+# Backend im Hintergrund starten
+echo ""
+echo -e "${YELLOW}⚙ Backend wird gestartet...${NC}"
+python run.py &
+BACKEND_PID=$!
+
+# Kurz warten, damit der Server hochfahren kann
+sleep 3
+
+# Prüfen ob Backend läuft
+if ! kill -0 $BACKEND_PID 2>/dev/null; then
+    echo -e "${RED}❌ Fehler: Backend konnte nicht gestartet werden!${NC}"
+    echo "Prüfe die Konsole auf Fehlermeldungen."
+    read -p "Drücke Enter zum Beenden..."
+    exit 1
+fi
+
+echo -e "${GREEN}✓ Backend läuft (PID: $BACKEND_PID)${NC}"
+
+# Frontend im Browser öffnen
+echo ""
+echo -e "${YELLOW}⚙ Frontend wird im Browser geöffnet...${NC}"
+sleep 1
+
+# Browser öffnen (macOS)
+if command -v open &> /dev/null; then
+    open "$FRONTEND_DIR/index.html"
+# Linux
+elif command -v xdg-open &> /dev/null; then
+    xdg-open "$FRONTEND_DIR/index.html"
+else
+    echo -e "${YELLOW}⚠ Browser konnte nicht automatisch geöffnet werden.${NC}"
+    echo "Bitte öffne manuell: $FRONTEND_DIR/index.html"
+fi
+
+echo ""
+echo -e "${GREEN}============================================${NC}"
+echo -e "${GREEN}   ✓ Anwendung erfolgreich gestartet!${NC}"
+echo -e "${GREEN}============================================${NC}"
+echo ""
+echo -e "Backend läuft auf: ${BLUE}http://localhost:8000${NC}"
+echo -e "Frontend: ${BLUE}$FRONTEND_DIR/index.html${NC}"
+echo ""
+echo -e "${YELLOW}Zum Beenden: Drücke Ctrl+C${NC}"
+echo ""
+
+# Auf Benutzer-Interrupt warten und dann Backend beenden
+cleanup() {
+    echo ""
+    echo -e "${YELLOW}⚙ Anwendung wird beendet...${NC}"
+    kill $BACKEND_PID 2>/dev/null
+    echo -e "${GREEN}✓ Backend gestoppt${NC}"
+    echo ""
+    exit 0
+}
+
+trap cleanup SIGINT SIGTERM
+
+# Warten bis Benutzer beendet
+wait $BACKEND_PID
+
