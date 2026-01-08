@@ -5,10 +5,10 @@ Responsible for content decisions and document composition.
 
 import logging
 from datetime import datetime
-from typing import List, Optional
+from typing import List
 
 from app.models.scoring import PortfolioAnalysis, ProjectScore
-from app.models.pptx import RgbColor
+from app.models.pptx import RgbColor, ChartType, ChartShape, ChartDataPoint
 from app.models.docx import (
     DocxDocumentModel,
     DocxSection,
@@ -16,15 +16,13 @@ from app.models.docx import (
     DocxParagraph,
     DocxTextRun,
     DocxTextStyle,
-    DocxTable,
-    DocxTableRow,
-    DocxTableCell,
     DocxList,
     DocxListItem,
+    DocxImage,
     HeadingLevel,
     ListStyle,
-    TableCellAlignment,
 )
+from app.services.chart_generator import ChartGenerator, create_project_radar_chart
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +79,7 @@ class DocxBuilder:
         self.analysis = analysis
         self.language = language
         self.tokens = DesignTokens()
+        self.chart_generator = ChartGenerator(dpi=120)  # Slightly lower DPI for Word
 
     def build(self) -> DocxDocumentModel:
         """Build complete document model."""
@@ -94,14 +93,10 @@ class DocxBuilder:
             text_color=self.tokens.TEXT_DARK,
         )
 
-        # Build all sections
+        # Build all sections (streamlined: no overview tables, no separate critical section)
         document.sections.append(self._build_title_section())
         document.sections.append(self._build_executive_summary_section())
-        document.sections.append(self._build_portfolio_overview_section())
         document.sections.append(self._build_project_details_section())
-
-        if self.analysis.critical_projects:
-            document.sections.append(self._build_critical_projects_section())
 
         if self.analysis.recommendations:
             document.sections.append(self._build_recommendations_section())
@@ -168,7 +163,7 @@ class DocxBuilder:
         return section
 
     def _build_executive_summary_section(self) -> DocxSection:
-        """Build the executive summary section."""
+        """Build the executive summary section - text only, no tables."""
         section = DocxSection(
             heading=DocxHeading(
                 text=self._get_label("executive_summary"),
@@ -177,247 +172,15 @@ class DocxBuilder:
             )
         )
 
-        # Executive summary text
+        # Executive summary text only
         summary_text = self.analysis.executive_summary or self._get_label("no_summary")
         section.paragraphs.append(DocxParagraph.simple(summary_text))
         section.content_order.append(("paragraph", 0))
 
-        # Key metrics box
-        section.paragraphs.append(
-            DocxParagraph.simple(
-                f"\n{self._get_label('key_metrics')}:",
-                bold=True,
-            )
-        )
-        section.content_order.append(("paragraph", 1))
-
-        metrics_table = self._build_key_metrics_table()
-        section.tables.append(metrics_table)
-        section.content_order.append(("table", 0))
-
         return section
-
-    def _build_key_metrics_table(self) -> DocxTable:
-        """Build key metrics table."""
-        rows = [
-            DocxTableRow(
-                cells=[
-                    DocxTableCell(
-                        content=self._get_label("metric"),
-                        bold=True,
-                        background_color=self.tokens.PRIMARY,
-                        text_color=self.tokens.WHITE,
-                    ),
-                    DocxTableCell(
-                        content=self._get_label("value"),
-                        bold=True,
-                        background_color=self.tokens.PRIMARY,
-                        text_color=self.tokens.WHITE,
-                        alignment=TableCellAlignment.CENTER,
-                    ),
-                ],
-                is_header=True,
-            ),
-            DocxTableRow(
-                cells=[
-                    DocxTableCell(content=self._get_label("total_projects")),
-                    DocxTableCell(
-                        content=str(len(self.analysis.project_scores)),
-                        alignment=TableCellAlignment.CENTER,
-                    ),
-                ]
-            ),
-            DocxTableRow(
-                cells=[
-                    DocxTableCell(content=self._get_label("critical_projects")),
-                    DocxTableCell(
-                        content=str(len(self.analysis.critical_projects)),
-                        alignment=TableCellAlignment.CENTER,
-                    ),
-                ]
-            ),
-            DocxTableRow(
-                cells=[
-                    DocxTableCell(content=f"{self._get_label('avg_urgency')} (U)"),
-                    DocxTableCell(
-                        content=f"{self.analysis.avg_urgency:.1f}",
-                        alignment=TableCellAlignment.CENTER,
-                    ),
-                ]
-            ),
-            DocxTableRow(
-                cells=[
-                    DocxTableCell(content=f"{self._get_label('avg_importance')} (I)"),
-                    DocxTableCell(
-                        content=f"{self.analysis.avg_importance:.1f}",
-                        alignment=TableCellAlignment.CENTER,
-                    ),
-                ]
-            ),
-            DocxTableRow(
-                cells=[
-                    DocxTableCell(content=f"{self._get_label('avg_complexity')} (C)"),
-                    DocxTableCell(
-                        content=f"{self.analysis.avg_complexity:.1f}",
-                        alignment=TableCellAlignment.CENTER,
-                    ),
-                ]
-            ),
-            DocxTableRow(
-                cells=[
-                    DocxTableCell(content=f"{self._get_label('avg_risk')} (R)"),
-                    DocxTableCell(
-                        content=f"{self.analysis.avg_risk:.1f}",
-                        alignment=TableCellAlignment.CENTER,
-                    ),
-                ]
-            ),
-            DocxTableRow(
-                cells=[
-                    DocxTableCell(content=f"{self._get_label('avg_data_quality')} (DQ)"),
-                    DocxTableCell(
-                        content=f"{self.analysis.avg_data_quality:.1f}",
-                        alignment=TableCellAlignment.CENTER,
-                    ),
-                ]
-            ),
-        ]
-
-        return DocxTable(rows=rows, col_widths_cm=[8.0, 3.0])
-
-    def _build_portfolio_overview_section(self) -> DocxSection:
-        """Build the portfolio overview section."""
-        section = DocxSection(
-            heading=DocxHeading(
-                text=self._get_label("portfolio_overview"),
-                level=HeadingLevel.H1,
-                color=self.tokens.PRIMARY,
-            )
-        )
-
-        # Projects overview table
-        if self.analysis.project_scores:
-            overview_table = self._build_projects_overview_table()
-            section.tables.append(overview_table)
-            section.content_order.append(("table", 0))
-
-            # Add legend
-            section.paragraphs.append(
-                DocxParagraph.simple(
-                    f"\n{self._get_label('score_legend')}: 1={self._get_label('very_low')}, "
-                    f"2={self._get_label('low')}, 3={self._get_label('medium')}, "
-                    f"4={self._get_label('high')}, 5={self._get_label('very_high')}",
-                    color=self.tokens.TEXT_LIGHT,
-                )
-            )
-            section.content_order.append(("paragraph", 0))
-        else:
-            section.paragraphs.append(
-                DocxParagraph.simple(self._get_label("no_projects"))
-            )
-            section.content_order.append(("paragraph", 0))
-
-        return section
-
-    def _build_projects_overview_table(self) -> DocxTable:
-        """Build projects overview table with scores."""
-        header_row = DocxTableRow(
-            cells=[
-                DocxTableCell(
-                    content=self._get_label("project"),
-                    bold=True,
-                    background_color=self.tokens.PRIMARY,
-                    text_color=self.tokens.WHITE,
-                ),
-                DocxTableCell(
-                    content="U",
-                    bold=True,
-                    background_color=self.tokens.PRIMARY,
-                    text_color=self.tokens.WHITE,
-                    alignment=TableCellAlignment.CENTER,
-                ),
-                DocxTableCell(
-                    content="I",
-                    bold=True,
-                    background_color=self.tokens.PRIMARY,
-                    text_color=self.tokens.WHITE,
-                    alignment=TableCellAlignment.CENTER,
-                ),
-                DocxTableCell(
-                    content="C",
-                    bold=True,
-                    background_color=self.tokens.PRIMARY,
-                    text_color=self.tokens.WHITE,
-                    alignment=TableCellAlignment.CENTER,
-                ),
-                DocxTableCell(
-                    content="R",
-                    bold=True,
-                    background_color=self.tokens.PRIMARY,
-                    text_color=self.tokens.WHITE,
-                    alignment=TableCellAlignment.CENTER,
-                ),
-                DocxTableCell(
-                    content="DQ",
-                    bold=True,
-                    background_color=self.tokens.PRIMARY,
-                    text_color=self.tokens.WHITE,
-                    alignment=TableCellAlignment.CENTER,
-                ),
-                DocxTableCell(
-                    content=self._get_label("status"),
-                    bold=True,
-                    background_color=self.tokens.PRIMARY,
-                    text_color=self.tokens.WHITE,
-                    alignment=TableCellAlignment.CENTER,
-                ),
-            ],
-            is_header=True,
-        )
-
-        rows = [header_row]
-
-        for project in self.analysis.project_scores:
-            status_color = self._get_status_color(project.status_color)
-            status_symbol = self._get_status_symbol(project.status_color)
-
-            row = DocxTableRow(
-                cells=[
-                    DocxTableCell(content=project.project_name),
-                    DocxTableCell(
-                        content=str(project.urgency.value),
-                        alignment=TableCellAlignment.CENTER,
-                    ),
-                    DocxTableCell(
-                        content=str(project.importance.value),
-                        alignment=TableCellAlignment.CENTER,
-                    ),
-                    DocxTableCell(
-                        content=str(project.complexity.value),
-                        alignment=TableCellAlignment.CENTER,
-                    ),
-                    DocxTableCell(
-                        content=str(project.risk.value),
-                        alignment=TableCellAlignment.CENTER,
-                    ),
-                    DocxTableCell(
-                        content=str(project.data_quality.value),
-                        alignment=TableCellAlignment.CENTER,
-                    ),
-                    DocxTableCell(
-                        content=status_symbol,
-                        alignment=TableCellAlignment.CENTER,
-                        text_color=status_color,
-                        bold=True,
-                    ),
-                ]
-            )
-            rows.append(row)
-
-        return DocxTable(rows=rows, col_widths_cm=[6.0, 1.5, 1.5, 1.5, 1.5, 1.5, 2.0])
 
     def _build_project_details_section(self) -> DocxSection:
-        """Build detailed project assessments section."""
+        """Build detailed project assessments section with radar charts and flowing text."""
         section = DocxSection(
             heading=DocxHeading(
                 text=self._get_label("project_details"),
@@ -427,31 +190,34 @@ class DocxBuilder:
         )
 
         para_idx = 0
-        table_idx = 0
+        image_idx = 0
 
         for project in self.analysis.project_scores:
-            # Project heading
+            # Project heading with critical indicator
+            project_title = project.project_name
+            if project.is_critical:
+                project_title = f"{project.project_name} [{self._get_label('critical_marker')}]"
+            
             section.paragraphs.append(
                 DocxParagraph.simple(
-                    f"\n{project.project_name}",
+                    f"\n{project_title}",
                     bold=True,
-                    color=self.tokens.ACCENT,
+                    color=self.tokens.STATUS_RED if project.is_critical else self.tokens.ACCENT,
                 )
             )
             section.content_order.append(("paragraph", para_idx))
             para_idx += 1
 
-            # Project info
+            # Project key facts as inline text
             info_parts = []
             if project.owner_name:
                 info_parts.append(f"{self._get_label('owner')}: {project.owner_name}")
             info_parts.append(f"{self._get_label('progress')}: {project.progress_percent:.0f}%")
             if project.milestones_total > 0:
-                info_parts.append(
-                    f"{self._get_label('milestones')}: {project.milestones_completed}/{project.milestones_total}"
-                )
+                milestone_text = f"{self._get_label('milestones')}: {project.milestones_completed}/{project.milestones_total}"
                 if project.milestones_delayed > 0:
-                    info_parts.append(f"({project.milestones_delayed} {self._get_label('delayed')})")
+                    milestone_text += f" ({project.milestones_delayed} {self._get_label('delayed')})"
+                info_parts.append(milestone_text)
 
             section.paragraphs.append(
                 DocxParagraph.simple(" | ".join(info_parts), color=self.tokens.TEXT_LIGHT)
@@ -459,114 +225,68 @@ class DocxBuilder:
             section.content_order.append(("paragraph", para_idx))
             para_idx += 1
 
-            # Scores table
-            scores_table = self._build_project_scores_table(project)
-            section.tables.append(scores_table)
-            section.content_order.append(("table", table_idx))
-            table_idx += 1
+            # Generate and add Radar Chart for U/I/C/R/DQ scores
+            radar_chart = self._generate_project_radar_chart(project)
+            if radar_chart:
+                section.images.append(radar_chart)
+                section.content_order.append(("image", image_idx))
+                image_idx += 1
 
-            # Project summary
-            if project.summary:
+            # Detailed analysis as flowing text (primary content)
+            if project.detailed_analysis:
                 section.paragraphs.append(
-                    DocxParagraph.simple(f"{self._get_label('assessment')}: {project.summary}")
+                    DocxParagraph.simple(project.detailed_analysis)
+                )
+                section.content_order.append(("paragraph", para_idx))
+                para_idx += 1
+            elif project.summary:
+                # Fallback to summary if no detailed analysis
+                section.paragraphs.append(
+                    DocxParagraph.simple(project.summary)
                 )
                 section.content_order.append(("paragraph", para_idx))
                 para_idx += 1
 
         return section
 
-    def _build_project_scores_table(self, project: ProjectScore) -> DocxTable:
-        """Build scores table for a single project."""
-        rows = [
-            DocxTableRow(
-                cells=[
-                    DocxTableCell(
-                        content=self._get_label("dimension"),
-                        bold=True,
-                        background_color=self.tokens.ACCENT,
-                        text_color=self.tokens.WHITE,
-                    ),
-                    DocxTableCell(
-                        content=self._get_label("score"),
-                        bold=True,
-                        background_color=self.tokens.ACCENT,
-                        text_color=self.tokens.WHITE,
-                        alignment=TableCellAlignment.CENTER,
-                    ),
-                    DocxTableCell(
-                        content=self._get_label("reasoning"),
-                        bold=True,
-                        background_color=self.tokens.ACCENT,
-                        text_color=self.tokens.WHITE,
-                    ),
-                ],
-                is_header=True,
-            ),
-        ]
-
-        score_data = [
-            (f"U ({self._get_label('urgency')})", project.urgency),
-            (f"I ({self._get_label('importance')})", project.importance),
-            (f"C ({self._get_label('complexity')})", project.complexity),
-            (f"R ({self._get_label('risk')})", project.risk),
-            (f"DQ ({self._get_label('data_quality')})", project.data_quality),
-        ]
-
-        for label, score in score_data:
-            score_color = self.tokens.SCORE_COLORS.get(score.value, self.tokens.TEXT_DARK)
-            rows.append(
-                DocxTableRow(
-                    cells=[
-                        DocxTableCell(content=label),
-                        DocxTableCell(
-                            content=self._score_to_stars(score.value),
-                            alignment=TableCellAlignment.CENTER,
-                            text_color=score_color,
-                        ),
-                        DocxTableCell(content=score.reasoning),
-                    ]
-                )
+    def _generate_project_radar_chart(self, project: ProjectScore) -> DocxImage:
+        """Generate radar chart for project U/I/C/R/DQ scores."""
+        try:
+            # Get score values (default to 0 if not available)
+            urgency = project.urgency.value if project.urgency else 0
+            importance = project.importance.value if project.importance else 0
+            complexity = project.complexity.value if project.complexity else 0
+            risk = project.risk.value if project.risk else 0
+            data_quality = project.data_quality.value if project.data_quality else 0
+            
+            # Skip if all scores are 0
+            if urgency == 0 and importance == 0 and complexity == 0 and risk == 0 and data_quality == 0:
+                return None
+            
+            # Create chart model
+            chart_shape = create_project_radar_chart(
+                project_name=project.project_name,
+                urgency=urgency,
+                importance=importance,
+                complexity=complexity,
+                risk=risk,
+                data_quality=data_quality,
             )
-
-        return DocxTable(rows=rows, col_widths_cm=[4.0, 2.5, 9.0])
-
-    def _build_critical_projects_section(self) -> DocxSection:
-        """Build critical projects section."""
-        section = DocxSection(
-            heading=DocxHeading(
-                text=self._get_label("critical_projects"),
-                level=HeadingLevel.H1,
-                color=self.tokens.STATUS_RED,
+            
+            # Generate PNG bytes
+            chart_bytes = self.chart_generator.generate(chart_shape)
+            
+            return DocxImage(
+                image_bytes=chart_bytes,
+                width_cm=8.0,  # Reasonable size for Word document
+                alignment="center",
             )
-        )
-
-        # Intro text
-        section.paragraphs.append(
-            DocxParagraph.simple(
-                self._get_label("critical_projects_intro").format(
-                    count=len(self.analysis.critical_projects)
-                )
-            )
-        )
-        section.content_order.append(("paragraph", 0))
-
-        # Critical projects list
-        critical_items = []
-        for project_id in self.analysis.critical_projects:
-            project = self._find_project_by_id(project_id)
-            if project:
-                critical_items.append(
-                    DocxListItem(text=f"{project.project_name}: {project.summary}", bold=False)
-                )
-
-        if critical_items:
-            section.lists.append(DocxList(items=critical_items, style=ListStyle.BULLET))
-            section.content_order.append(("list", 0))
-
-        return section
+        except Exception as e:
+            logger.warning(f"Failed to generate radar chart for {project.project_name}: {e}")
+            return None
 
     def _build_recommendations_section(self) -> DocxSection:
-        """Build recommendations section."""
+        """Build recommendations section - limited to top 3 recommendations."""
         section = DocxSection(
             heading=DocxHeading(
                 text=self._get_label("recommendations"),
@@ -575,10 +295,12 @@ class DocxBuilder:
             )
         )
 
-        # Recommendations list
+        # Limit to max 3 recommendations for brevity
+        top_recommendations = self.analysis.recommendations[:3]
+        
         rec_items = [
             DocxListItem(text=rec, bold=False)
-            for rec in self.analysis.recommendations
+            for rec in top_recommendations
         ]
 
         if rec_items:
@@ -590,10 +312,6 @@ class DocxBuilder:
     # =========================================================================
     # Helper Methods
     # =========================================================================
-
-    def _score_to_stars(self, score: int) -> str:
-        """Convert numeric score to star representation."""
-        return "●" * score + "○" * (5 - score)
 
     def _get_status_color(self, status: str) -> RgbColor:
         """Get color for status."""
@@ -615,60 +333,37 @@ class DocxBuilder:
         }
         return symbols.get(status.lower(), "○")
 
-    def _find_project_by_id(self, project_id: str) -> Optional[ProjectScore]:
-        """Find project by ID."""
-        for project in self.analysis.project_scores:
-            if project.project_id == project_id:
-                return project
-        return None
-
     def _get_label(self, key: str) -> str:
         """Get localized label."""
         labels = {
             "de": {
-                "title_subtitle": "KI-gestützte Portfolioanalyse (U/I/C/R/DQ)",
+                "title_subtitle": "KI-gestützte Portfolioanalyse",
                 "generated": "Generiert",
                 "executive_summary": "Executive Summary",
                 "portfolio_overview": "Portfolio-Übersicht",
-                "project_details": "Projektbewertungen im Detail",
+                "project_details": "Projektanalysen im Detail",
                 "critical_projects": "Kritische Projekte",
                 "recommendations": "Handlungsempfehlungen",
                 "key_metrics": "Kennzahlen",
                 "metric": "Kennzahl",
                 "value": "Wert",
                 "total_projects": "Projekte gesamt",
-                "avg_urgency": "Ø Dringlichkeit",
-                "avg_importance": "Ø Wichtigkeit",
-                "avg_complexity": "Ø Komplexität",
-                "avg_risk": "Ø Risiko",
-                "avg_data_quality": "Ø Datenqualität",
                 "project": "Projekt",
                 "status": "Status",
-                "score_legend": "Skala",
-                "very_low": "sehr niedrig",
-                "low": "niedrig",
-                "medium": "mittel",
-                "high": "hoch",
-                "very_high": "sehr hoch",
                 "no_projects": "Keine Projekte zur Analyse vorhanden.",
                 "no_summary": "Keine Zusammenfassung verfügbar.",
-                "dimension": "Dimension",
-                "score": "Score",
-                "reasoning": "Begründung",
-                "urgency": "Dringlichkeit",
-                "importance": "Wichtigkeit",
-                "complexity": "Komplexität",
-                "risk": "Risiko",
-                "data_quality": "Datenqualität",
                 "owner": "Verantwortlich",
                 "progress": "Fortschritt",
                 "milestones": "Meilensteine",
                 "delayed": "verzögert",
-                "assessment": "Einschätzung",
                 "critical_projects_intro": "Die folgenden {count} Projekte wurden als kritisch eingestuft und erfordern besondere Aufmerksamkeit:",
+                "critical_label": "Kritisch",
+                "critical_marker": "KRITISCH",
+                "yes": "Ja",
+                "no": "Nein",
             },
             "en": {
-                "title_subtitle": "AI-Powered Portfolio Analysis (U/I/C/R/DQ)",
+                "title_subtitle": "AI-Powered Portfolio Analysis",
                 "generated": "Generated",
                 "executive_summary": "Executive Summary",
                 "portfolio_overview": "Portfolio Overview",
@@ -679,35 +374,19 @@ class DocxBuilder:
                 "metric": "Metric",
                 "value": "Value",
                 "total_projects": "Total Projects",
-                "avg_urgency": "Avg. Urgency",
-                "avg_importance": "Avg. Importance",
-                "avg_complexity": "Avg. Complexity",
-                "avg_risk": "Avg. Risk",
-                "avg_data_quality": "Avg. Data Quality",
                 "project": "Project",
                 "status": "Status",
-                "score_legend": "Scale",
-                "very_low": "very low",
-                "low": "low",
-                "medium": "medium",
-                "high": "high",
-                "very_high": "very high",
                 "no_projects": "No projects available for analysis.",
                 "no_summary": "No summary available.",
-                "dimension": "Dimension",
-                "score": "Score",
-                "reasoning": "Reasoning",
-                "urgency": "Urgency",
-                "importance": "Importance",
-                "complexity": "Complexity",
-                "risk": "Risk",
-                "data_quality": "Data Quality",
                 "owner": "Owner",
                 "progress": "Progress",
                 "milestones": "Milestones",
                 "delayed": "delayed",
-                "assessment": "Assessment",
                 "critical_projects_intro": "The following {count} projects have been identified as critical and require special attention:",
+                "critical_label": "Critical",
+                "critical_marker": "CRITICAL",
+                "yes": "Yes",
+                "no": "No",
             },
         }
         return labels.get(self.language, labels["de"]).get(key, key)

@@ -2,7 +2,7 @@
 API request/response schemas.
 """
 
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -14,7 +14,12 @@ class CustomConfig(BaseModel):
 
     blueant_url: Optional[str] = Field(None, description="BlueAnt API base URL")
     blueant_key: Optional[str] = Field(None, description="BlueAnt API key")
+    
+    # Legacy Gemini config
     gemini_key: Optional[str] = Field(None, description="Gemini API key")
+    
+    # OpenRouter config
+    openrouter_key: Optional[str] = Field(None, description="OpenRouter API key")
 
 
 # =============================================================================
@@ -56,6 +61,17 @@ class AnalyzeRequest(BaseModel):
 
     portfolio_id: str = Field(..., description="BlueAnt Portfolio ID to analyze")
     custom_config: Optional[CustomConfig] = None
+    
+    # LLM Provider selection
+    llm_provider: Optional[Literal["gemini", "openrouter"]] = Field(
+        None, 
+        description="LLM provider to use. Options: 'gemini', 'openrouter'. Default from config."
+    )
+    llm_model: Optional[str] = Field(
+        None,
+        description="LLM model to use. For OpenRouter, use shortnames: "
+                    "devstral, gemini-flash"
+    )
 
 
 class AnalyzeResponse(BaseModel):

@@ -55,8 +55,14 @@ class NormalizedProject(BaseModel):
     name: str = Field(..., description="Project name")
     portfolio_id: Optional[str] = Field(None, description="Parent portfolio ID")
 
-    # Ownership
+    # Ownership & Organization
     owner_name: Optional[str] = Field(None, description="Project owner/manager name")
+    department_name: Optional[str] = Field(None, description="Department name (resolved from ID)")
+    customer_name: Optional[str] = Field(None, description="Customer/client name (resolved from ID)")
+    
+    # Project Classification
+    type_name: Optional[str] = Field(None, description="Project type (resolved from ID)")
+    priority_name: Optional[str] = Field(None, description="Priority level (resolved from ID)")
 
     # Status Traffic Light
     status_label: Optional[str] = Field(
@@ -114,6 +120,16 @@ class NormalizedProject(BaseModel):
     scope_summary: Optional[str] = Field(
         None,
         description="Project scope/subject/content summary",
+        max_length=2000,
+    )
+    problem_summary: Optional[str] = Field(
+        None,
+        description="Known problems and challenges",
+        max_length=2000,
+    )
+    objective_summary: Optional[str] = Field(
+        None,
+        description="Project objectives and goals",
         max_length=2000,
     )
 

@@ -1,5 +1,6 @@
 """
 Report generation API endpoints.
+Now supports AI-generated presentation structures with visualizations.
 """
 
 import logging
@@ -13,6 +14,7 @@ from app.services.pptx_builder import PptxBuilder
 from app.services.pptx_renderer import PptxRenderer
 from app.services.docx_builder import DocxBuilder
 from app.services.docx_renderer import DocxRenderer
+from app.ai.gemini import GeminiService, GeminiError
 
 logger = logging.getLogger(__name__)
 
@@ -32,9 +34,19 @@ class ReportOptions(BaseModel):
         description="Report language (de or en)",
         pattern="^(de|en)$",
     )
-    # Future options:
-    # include_all_projects: bool = False
-    # include_charts: bool = True
+    use_ai_structure: bool = Field(
+        default=False,
+        description="Use AI to dynamically generate presentation structure (False = use fixed structure with radar charts per project)",
+    )
+    include_charts: bool = Field(
+        default=True,
+        description="Include chart visualizations in the report",
+    )
+    detail_level: str = Field(
+        default="compact",
+        description="Detail level for project insights: 'compact' (short statements) or 'detailed' (fuller explanations)",
+        pattern="^(compact|detailed)$",
+    )
 
 
 class GenerateReportRequest(BaseModel):
@@ -66,6 +78,9 @@ class GenerateReportRequest(BaseModel):
 async def generate_pptx_report(request: GenerateReportRequest):
     """
     Generate a PowerPoint report from portfolio analysis.
+    
+    Supports AI-generated presentation structures with visualizations
+    for optimal data presentation with minimal text.
 
     Returns the PPTX file as a downloadable attachment.
     """
@@ -73,7 +88,7 @@ async def generate_pptx_report(request: GenerateReportRequest):
 
     logger.info(
         f"Generating PPTX report for portfolio '{request.analysis.portfolio_name}' "
-        f"(language={options.language})"
+        f"(language={options.language}, use_ai_structure={options.use_ai_structure}, detail_level={options.detail_level})"
     )
 
     try:
@@ -81,8 +96,24 @@ async def generate_pptx_report(request: GenerateReportRequest):
         builder = PptxBuilder(
             analysis=request.analysis,
             language=options.language,
+            detail_level=options.detail_level,
         )
-        presentation_model = builder.build()
+        
+        # Use AI to generate optimal structure if enabled
+        if options.use_ai_structure:
+            try:
+                gemini = GeminiService()
+                ai_structure = await gemini.generate_presentation_structure(request.analysis)
+                logger.info(f"AI generated {len(ai_structure.slides)} slides")
+                presentation_model = builder.build_from_ai_structure(ai_structure)
+            except GeminiError as e:
+                logger.warning(f"AI structure generation failed, using default: {e}")
+                presentation_model = builder.build()
+            except Exception as e:
+                logger.warning(f"Unexpected error in AI generation, using default: {e}")
+                presentation_model = builder.build()
+        else:
+            presentation_model = builder.build()
 
         # Render to PPTX bytes
         renderer = PptxRenderer()

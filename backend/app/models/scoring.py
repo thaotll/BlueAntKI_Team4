@@ -46,12 +46,16 @@ class ProjectScore(BaseModel):
     risk: ScoreValue = Field(..., description="Risiko (R)")
     data_quality: ScoreValue = Field(..., description="Datenqualität (DQ)")
 
-    # Summary
+    # Summary and Analysis
     is_critical: bool = Field(
         default=False, description="LLM assessment: is this project critical?"
     )
     summary: str = Field(
         default="", description="Brief overall assessment of the project"
+    )
+    detailed_analysis: str = Field(
+        default="",
+        description="Ausführliche Projektanalyse mit Problembeschreibung, Ursachen und Auswirkungen (3-5 Sätze)"
     )
 
     # Enriched fields from NormalizedProject (for reporting)
@@ -63,6 +67,9 @@ class ProjectScore(BaseModel):
     )
     status_color: str = Field(
         default="gray", description="Traffic light status (green/yellow/red/gray)"
+    )
+    status_label: Optional[str] = Field(
+        default=None, description="Project status label (e.g., 'Abgeschlossen', 'In Bearbeitung')"
     )
     milestones_total: int = Field(
         default=0, description="Total number of milestones"
@@ -143,6 +150,12 @@ class PortfolioAnalysis(BaseModel):
     avg_risk: float = Field(default=0.0, description="Average risk across projects")
     avg_data_quality: float = Field(
         default=0.0, description="Average data quality across projects"
+    )
+
+    # Data Quality Warnings (from SanityValidator)
+    data_warnings: List[str] = Field(
+        default_factory=list,
+        description="Warnungen zu Daten-Inkonsistenzen und fehlenden Daten"
     )
 
     def compute_statistics(self) -> None:

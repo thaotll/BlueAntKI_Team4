@@ -7,12 +7,16 @@ import logging
 import re
 from collections import Counter
 from datetime import date, datetime
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 from app.models.blueant import (
+    BlueAntCustomer,
+    BlueAntDepartment,
     BlueAntPlanningEntry,
     BlueAntPortfolio,
+    BlueAntPriority,
     BlueAntProject,
+    BlueAntProjectType,
     BlueAntStatus,
 )
 from app.models.domain import (
@@ -39,14 +43,81 @@ class DataNormalizer:
     - Compute derived indicators (criticality, delays)
     """
 
-    def __init__(self, status_masterdata: Optional[List[BlueAntStatus]] = None):
+    def __init__(
+        self,
+        status_masterdata: Optional[List[BlueAntStatus]] = None,
+        priority_masterdata: Optional[List[BlueAntPriority]] = None,
+        type_masterdata: Optional[List[BlueAntProjectType]] = None,
+        department_masterdata: Optional[List[BlueAntDepartment]] = None,
+        customer_masterdata: Optional[List[BlueAntCustomer]] = None,
+    ):
         self.status_map: dict[str, BlueAntStatus] = {}
+        self.priority_map: dict[str, BlueAntPriority] = {}
+        self.type_map: dict[str, BlueAntProjectType] = {}
+        self.department_map: dict[str, BlueAntDepartment] = {}
+        self.customer_map: dict[str, BlueAntCustomer] = {}
+        
         if status_masterdata:
-            self.status_map = {s.id: s for s in status_masterdata}
+            self.status_map = {str(s.id): s for s in status_masterdata}
+        if priority_masterdata:
+            self.priority_map = {str(p.id): p for p in priority_masterdata}
+        if type_masterdata:
+            self.type_map = {str(t.id): t for t in type_masterdata}
+        if department_masterdata:
+            self.department_map = {str(d.id): d for d in department_masterdata}
+        if customer_masterdata:
+            self.customer_map = {str(c.id): c for c in customer_masterdata}
+
+    def set_all_masterdata(self, masterdata: dict) -> None:
+        """Update all masterdata mappings from a dict."""
+        if masterdata.get("statuses"):
+            self.status_map = {str(s.id): s for s in masterdata["statuses"]}
+            logger.info(f"Loaded {len(self.status_map)} status entries")
+        if masterdata.get("priorities"):
+            self.priority_map = {str(p.id): p for p in masterdata["priorities"]}
+            logger.info(f"Loaded {len(self.priority_map)} priority entries")
+        if masterdata.get("types"):
+            self.type_map = {str(t.id): t for t in masterdata["types"]}
+            logger.info(f"Loaded {len(self.type_map)} type entries")
+        if masterdata.get("departments"):
+            self.department_map = {str(d.id): d for d in masterdata["departments"]}
+            logger.info(f"Loaded {len(self.department_map)} department entries")
+        if masterdata.get("customers"):
+            self.customer_map = {str(c.id): c for c in masterdata["customers"]}
+            logger.info(f"Loaded {len(self.customer_map)} customer entries")
 
     def set_status_masterdata(self, status_masterdata: List[BlueAntStatus]) -> None:
         """Update status masterdata mapping."""
-        self.status_map = {s.id: s for s in status_masterdata}
+        self.status_map = {str(s.id): s for s in status_masterdata}
+        logger.info(f"Loaded {len(self.status_map)} status entries")
+
+    def get_priority_name(self, priority_id: Optional[Union[int, str]]) -> Optional[str]:
+        """Resolve priority ID to display name."""
+        if priority_id is None:
+            return None
+        priority = self.priority_map.get(str(priority_id))
+        return priority.display_name if priority else None
+
+    def get_type_name(self, type_id: Optional[Union[int, str]]) -> Optional[str]:
+        """Resolve project type ID to display name."""
+        if type_id is None:
+            return None
+        ptype = self.type_map.get(str(type_id))
+        return ptype.display_name if ptype else None
+
+    def get_department_name(self, department_id: Optional[Union[int, str]]) -> Optional[str]:
+        """Resolve department ID to display name."""
+        if department_id is None:
+            return None
+        dept = self.department_map.get(str(department_id))
+        return dept.display_name if dept else None
+
+    def get_customer_name(self, customer_id: Optional[Union[int, str]]) -> Optional[str]:
+        """Resolve customer ID to display name."""
+        if customer_id is None:
+            return None
+        customer = self.customer_map.get(str(customer_id))
+        return customer.display_name if customer else None
 
     @staticmethod
     def clean_text(text: Optional[str], max_length: int = 2000) -> Optional[str]:
@@ -76,6 +147,57 @@ class DataNormalizer:
 
         return text if text else None
 
+    def _derive_status_from_memo(self, memo: str) -> Tuple[Optional[str], StatusColor]:
+        """
+        Derive project status from statusMemo text.
+        Analyzes the memo content to determine project state.
+        """
+        memo_lower = memo.lower()
+        
+        # Check for completion indicators
+        completion_keywords = [
+            "erfolgreich abgeschlossen", "abgeschlossen", "completed", 
+            "fertiggestellt", "beendet", "finished", "closed",
+            "projekt wurde am", "go-live wurde"
+        ]
+        if any(kw in memo_lower for kw in completion_keywords):
+            return "Abgeschlossen", StatusColor.GREEN
+        
+        # Check for critical/problem indicators
+        critical_keywords = [
+            "kritisch", "critical", "blockiert", "blocked", "stopped",
+            "massive probleme", "erhebliche verzögerung", "gestoppt"
+        ]
+        if any(kw in memo_lower for kw in critical_keywords):
+            return "Kritisch", StatusColor.RED
+        
+        # Check for at-risk indicators
+        risk_keywords = [
+            "verzögerung", "delay", "risiko", "risk", "probleme",
+            "schwierigkeiten", "issues", "herausforderung"
+        ]
+        if any(kw in memo_lower for kw in risk_keywords):
+            return "Gefährdet", StatusColor.YELLOW
+        
+        # Check for early/planning phase
+        planning_keywords = [
+            "prephase", "startphase", "planungsphase", "vorbereitung",
+            "startet gerade", "wird gestartet", "initialisierung"
+        ]
+        if any(kw in memo_lower for kw in planning_keywords):
+            return "In Planung", StatusColor.GRAY
+        
+        # Check for active/in progress
+        active_keywords = [
+            "in bearbeitung", "in progress", "läuft", "aktiv",
+            "durchführung", "umsetzung"
+        ]
+        if any(kw in memo_lower for kw in active_keywords):
+            return "In Bearbeitung", StatusColor.GREEN
+        
+        # Default: Unknown but extract first sentence as hint
+        return None, StatusColor.GRAY
+
     def map_status_color(self, color_str: Optional[str]) -> StatusColor:
         """Map color string to StatusColor enum."""
         if not color_str:
@@ -92,14 +214,25 @@ class DataNormalizer:
         return StatusColor.GRAY
 
     def get_status_info(
-        self, status_id: Optional[str]
+        self, status_id: Optional[Union[int, str, dict]]
     ) -> Tuple[Optional[str], StatusColor]:
-        """Get status label and color from status ID."""
-        if not status_id or status_id not in self.status_map:
+        """Get status label and color from status ID or embedded object."""
+        if not status_id:
+            return None, StatusColor.GRAY
+        
+        # Handle embedded status object (when API returns expanded data)
+        if isinstance(status_id, dict):
+            status_text = status_id.get("text") or status_id.get("name")
+            status_color = status_id.get("color")
+            return status_text, self.map_status_color(status_color)
+        
+        # Handle status ID lookup from masterdata
+        status_id_str = str(status_id)
+        if status_id_str not in self.status_map:
             return None, StatusColor.GRAY
 
-        status = self.status_map[status_id]
-        return status.name, self.map_status_color(status.color)
+        status = self.status_map[status_id_str]
+        return status.display_name, self.map_status_color(status.color)
 
     def determine_milestone_status(
         self,
@@ -163,8 +296,23 @@ class DataNormalizer:
         """Transform raw BlueAnt project into normalized structure."""
         entries = planning_entries or []
 
-        # Map status
-        status_label, status_color = self.get_status_info(project.status_id)
+        # Map status - try multiple sources
+        status_label = None
+        status_color = StatusColor.GRAY
+        
+        # 1. Try embedded status object
+        if project.status and isinstance(project.status, dict):
+            status_label, status_color = self.get_status_info(project.status)
+        
+        # 2. Try status ID from masterdata
+        if not status_label and project.status_id:
+            status_label, status_color = self.get_status_info(project.status_id)
+        
+        # 3. Try to derive status from statusMemo text
+        if not status_label and project.status_memo:
+            status_label, status_color = self._derive_status_from_memo(project.status_memo)
+            if status_label:
+                logger.info(f"Derived status '{status_label}' from memo for project '{project.name}'")
 
         # Aggregate effort
         planned_effort = sum(e.planned_effort_hours for e in entries)
@@ -221,11 +369,27 @@ class DataNormalizer:
             is_critical = True
             criticality_reasons.append(f"Terminverzug: {delay_days} Tage")
 
+        # Resolve IDs to names via masterdata
+        priority_name = self.get_priority_name(project.priority_id)
+        type_name = self.get_type_name(project.type_id)
+        department_name = self.get_department_name(project.department_id)
+        
+        # Get customer name from clients array (first client)
+        customer_name = None
+        if project.clients and len(project.clients) > 0:
+            first_client = project.clients[0]
+            client_id = first_client.get("clientId") or first_client.get("id")
+            customer_name = self.get_customer_name(client_id)
+
         return NormalizedProject(
             id=str(project.id),
             name=project.name,
             portfolio_id=str(project.portfolio_ids[0]) if project.portfolio_ids else project.portfolio_id,
             owner_name=project.owner_name,
+            department_name=department_name,
+            customer_name=customer_name,
+            type_name=type_name,
+            priority_name=priority_name,
             status_label=status_label,
             status_color=status_color,
             planned_effort_hours=planned_effort,
@@ -241,8 +405,10 @@ class DataNormalizer:
             milestones_total=len(milestones),
             milestones_completed=milestones_completed,
             milestones_delayed=milestones_delayed,
-            status_text=self.clean_text(project.status_text),
-            scope_summary=self.clean_text(project.description),
+            status_text=self.clean_text(project.status_memo or project.status_text),
+            scope_summary=self.clean_text(project.subject_memo or project.description),
+            problem_summary=self.clean_text(project.problem_memo),
+            objective_summary=self.clean_text(project.objective_memo),
             is_potentially_critical=is_critical,
             criticality_reasons=criticality_reasons,
             last_updated=project.updated_at,

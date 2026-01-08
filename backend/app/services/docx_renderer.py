@@ -27,6 +27,7 @@ from app.models.docx import (
     DocxList,
     DocxListItem,
     DocxHeading,
+    DocxImage,
     HeadingLevel,
     ListStyle,
     TableCellAlignment,
@@ -115,14 +116,18 @@ class DocxRenderer:
                     self._render_table(doc, section_model.tables[index], document_model)
                 elif content_type == "list" and index < len(section_model.lists):
                     self._render_list(doc, section_model.lists[index])
+                elif content_type == "image" and index < len(section_model.images):
+                    self._render_image(doc, section_model.images[index])
         else:
-            # Default: render paragraphs, then tables, then lists
+            # Default: render paragraphs, then tables, then lists, then images
             for para in section_model.paragraphs:
                 self._render_paragraph(doc, para)
             for table in section_model.tables:
                 self._render_table(doc, table, document_model)
             for list_model in section_model.lists:
                 self._render_list(doc, list_model)
+            for image in section_model.images:
+                self._render_image(doc, image)
 
     def _render_heading(
         self,
@@ -245,6 +250,30 @@ class DocxRenderer:
             if item.level > 0:
                 para.paragraph_format.left_indent = Cm(item.level * 0.5)
 
+    def _render_image(self, doc: Document, image_model: DocxImage) -> None:
+        """Render an image."""
+        # Create paragraph for the image
+        para = doc.add_paragraph()
+        para.alignment = self.ALIGNMENT_MAP.get(image_model.alignment, WD_ALIGN_PARAGRAPH.CENTER)
+        
+        # Add the image
+        run = para.add_run()
+        image_stream = BytesIO(image_model.image_bytes)
+        
+        # Determine dimensions
+        width = Cm(image_model.width_cm) if image_model.width_cm else None
+        height = Cm(image_model.height_cm) if image_model.height_cm else None
+        
+        run.add_picture(image_stream, width=width, height=height)
+        
+        # Add caption if provided
+        if image_model.caption:
+            caption_para = doc.add_paragraph()
+            caption_para.alignment = self.ALIGNMENT_MAP.get(image_model.alignment, WD_ALIGN_PARAGRAPH.CENTER)
+            caption_run = caption_para.add_run(image_model.caption)
+            caption_run.font.size = Pt(9)
+            caption_run.italic = True
+
     def _apply_text_style(self, run, style: DocxTextStyle) -> None:
         """Apply text styling to a run."""
         run.font.name = style.font_name
@@ -260,4 +289,5 @@ class DocxRenderer:
     def _to_rgb_color(color: RgbColor) -> RGBColor:
         """Convert model RgbColor to python-docx RGBColor."""
         return RGBColor(color.r, color.g, color.b)
+
 

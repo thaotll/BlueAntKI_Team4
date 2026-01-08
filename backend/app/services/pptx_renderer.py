@@ -19,6 +19,8 @@ from app.models.pptx import (
     TextBoxShape,
     ImageShape,
     RectangleShape,
+    ChartShape,
+    TableShape,
     ShapeModel,
     TextParagraph,
     TextStyle,
@@ -106,6 +108,10 @@ class PptxRenderer:
             self._render_image(slide, shape_model)
         elif isinstance(shape_model, RectangleShape):
             self._render_rectangle(slide, shape_model)
+        elif isinstance(shape_model, ChartShape):
+            self._render_chart(slide, shape_model)
+        elif isinstance(shape_model, TableShape):
+            self._render_table(slide, shape_model)
 
     def _render_textbox(self, slide, model: TextBoxShape) -> None:
         """Render a text box shape."""
@@ -209,6 +215,121 @@ class PptxRenderer:
             shape.line.width = Pt(model.line_width_pt)
         else:
             shape.line.fill.background()
+
+    def _render_chart(self, slide, model: ChartShape) -> None:
+        """
+        Render a chart shape.
+        
+        Charts are pre-rendered as images by the chart_generator,
+        so we render them as image shapes using the rendered_image_bytes.
+        """
+        pos = model.position
+        
+        # Charts should have been pre-rendered to image bytes
+        if model.rendered_image_bytes:
+            try:
+                image_stream = BytesIO(model.rendered_image_bytes)
+                slide.shapes.add_picture(
+                    image_stream,
+                    Inches(pos.x),
+                    Inches(pos.y),
+                    width=Inches(pos.width),
+                )
+            except Exception as e:
+                logger.warning(f"Failed to add chart image: {e}")
+        else:
+            # Fallback: create a placeholder rectangle
+            logger.warning("Chart has no rendered image, creating placeholder")
+            shape = slide.shapes.add_shape(
+                MSO_SHAPE.RECTANGLE,
+                Inches(pos.x),
+                Inches(pos.y),
+                Inches(pos.width),
+                Inches(pos.height),
+            )
+            shape.fill.solid()
+            shape.fill.fore_color.rgb = RGBColor(240, 240, 240)
+            
+            # Add placeholder text
+            text_frame = shape.text_frame
+            text_frame.text = f"[Chart: {model.chart_type.value}]"
+
+    def _render_table(self, slide, model: TableShape) -> None:
+        """Render a table shape."""
+        pos = model.position
+        
+        if not model.rows:
+            logger.warning("Table has no rows, skipping")
+            return
+        
+        # Determine table dimensions
+        row_count = len(model.rows)
+        col_count = max(len(row.cells) for row in model.rows) if model.rows else 1
+        
+        try:
+            # Add table to slide
+            table_shape = slide.shapes.add_table(
+                row_count,
+                col_count,
+                Inches(pos.x),
+                Inches(pos.y),
+                Inches(pos.width),
+                Inches(pos.height),
+            )
+            table = table_shape.table
+            
+            # Calculate column widths (equal distribution)
+            col_width = Inches(pos.width / col_count)
+            for i in range(col_count):
+                table.columns[i].width = col_width
+            
+            # Render each row
+            for row_idx, row_model in enumerate(model.rows):
+                row = table.rows[row_idx]
+                
+                for col_idx, cell_model in enumerate(row_model.cells):
+                    if col_idx >= col_count:
+                        break
+                    
+                    cell = row.cells[col_idx]
+                    cell.text = cell_model.text
+                    
+                    # Apply cell styling
+                    para = cell.text_frame.paragraphs[0]
+                    
+                    # Determine style (cell style > row style > table defaults)
+                    if row_model.is_header and model.header_style:
+                        style = cell_model.style or model.header_style
+                    else:
+                        style = cell_model.style or model.cell_style
+                    
+                    if style:
+                        if para.runs:
+                            run = para.runs[0]
+                        else:
+                            run = para.add_run()
+                            run.text = cell_model.text
+                            cell.text_frame.paragraphs[0].clear()
+                        
+                        run.font.name = style.font_name
+                        run.font.size = Pt(style.font_size_pt)
+                        run.font.bold = style.bold
+                        if style.color:
+                            run.font.color.rgb = self._to_rgb_color(style.color)
+                    
+                    # Apply cell background color
+                    if row_model.is_header and model.header_background:
+                        cell.fill.solid()
+                        cell.fill.fore_color.rgb = self._to_rgb_color(model.header_background)
+                    elif cell_model.background_color:
+                        cell.fill.solid()
+                        cell.fill.fore_color.rgb = self._to_rgb_color(cell_model.background_color)
+                    elif model.alternating_row_color and row_idx % 2 == 1:
+                        cell.fill.solid()
+                        cell.fill.fore_color.rgb = self._to_rgb_color(model.alternating_row_color)
+        
+        except Exception as e:
+            logger.error(f"Failed to render table: {e}", exc_info=True)
 
     @staticmethod
     def _to_rgb_color(color: RgbColor) -> RGBColor:

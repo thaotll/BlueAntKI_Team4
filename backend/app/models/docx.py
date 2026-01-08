@@ -152,6 +152,16 @@ class DocxHeading(BaseModel):
     color: Optional[RgbColor] = None
 
 
+class DocxImage(BaseModel):
+    """An image in the document."""
+    
+    image_bytes: bytes = Field(..., description="PNG/JPEG image as bytes")
+    width_cm: Optional[float] = None  # Width in cm, None = auto
+    height_cm: Optional[float] = None  # Height in cm, None = auto
+    caption: Optional[str] = None  # Optional caption below image
+    alignment: Literal["left", "center", "right"] = "center"
+
+
 class DocxSection(BaseModel):
     """A logical section of the document."""
 
@@ -159,9 +169,10 @@ class DocxSection(BaseModel):
     paragraphs: List[DocxParagraph] = Field(default_factory=list)
     tables: List[DocxTable] = Field(default_factory=list)
     lists: List[DocxList] = Field(default_factory=list)
+    images: List[DocxImage] = Field(default_factory=list)
 
     # Content order tracking (for mixed content)
-    # Format: [("paragraph", 0), ("table", 0), ("paragraph", 1), ...]
+    # Format: [("paragraph", 0), ("table", 0), ("paragraph", 1), ("image", 0), ...]
     content_order: List[tuple] = Field(default_factory=list)
 
 
@@ -203,4 +214,5 @@ class DocxDocumentModel(BaseModel):
     status_gray: RgbColor = Field(
         default_factory=lambda: RgbColor(r=128, g=128, b=128)  # #808080
     )
+
 

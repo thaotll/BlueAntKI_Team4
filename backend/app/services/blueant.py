@@ -10,9 +10,13 @@ import httpx
 
 from app.config import get_settings
 from app.models.blueant import (
+    BlueAntCustomer,
+    BlueAntDepartment,
     BlueAntPlanningEntry,
     BlueAntPortfolio,
+    BlueAntPriority,
     BlueAntProject,
+    BlueAntProjectType,
     BlueAntStatus,
 )
 
@@ -145,13 +149,20 @@ class BlueAntService:
 
         # Fallback: Get all projects and filter by portfolio
         data = await self._request(
-            "GET", "/v1/projects", params={"portfolioId": portfolio_id}
+            "GET", 
+            "/v1/projects", 
+            params={
+                "portfolioId": portfolio_id,
+                "includeMemoFields": "true"
+            }
         )
 
         if isinstance(data, list):
             return [BlueAntProject.model_validate(p) for p in data]
         elif isinstance(data, dict) and "items" in data:
             return [BlueAntProject.model_validate(p) for p in data["items"]]
+        elif isinstance(data, dict) and "projects" in data:
+            return [BlueAntProject.model_validate(p) for p in data["projects"]]
         return []
 
     # =========================================================================
@@ -159,8 +170,12 @@ class BlueAntService:
     # =========================================================================
 
     async def get_project(self, project_id: Union[str, int]) -> BlueAntProject:
-        """Fetch single project by ID."""
-        data = await self._request("GET", f"/v1/projects/{project_id}")
+        """Fetch single project by ID with memo fields."""
+        data = await self._request(
+            "GET", 
+            f"/v1/projects/{project_id}",
+            params={"includeMemoFields": "true"}
+        )
         if isinstance(data, dict) and "project" in data:
             return BlueAntProject.model_validate(data["project"])
         return BlueAntProject.model_validate(data)
@@ -210,6 +225,71 @@ class BlueAntService:
         elif isinstance(data, dict) and "items" in data:
             return [BlueAntStatus.model_validate(s) for s in data["items"]]
         return []
+
+    async def get_priority_masterdata(self) -> List[BlueAntPriority]:
+        """Fetch priority masterdata."""
+        data = await self._request("GET", "/v1/masterdata/projects/priorities")
+
+        if isinstance(data, list):
+            return [BlueAntPriority.model_validate(p) for p in data]
+        elif isinstance(data, dict) and "items" in data:
+            return [BlueAntPriority.model_validate(p) for p in data["items"]]
+        return []
+
+    async def get_project_type_masterdata(self) -> List[BlueAntProjectType]:
+        """Fetch project type masterdata."""
+        data = await self._request("GET", "/v1/masterdata/projects/types")
+
+        if isinstance(data, list):
+            return [BlueAntProjectType.model_validate(t) for t in data]
+        elif isinstance(data, dict) and "items" in data:
+            return [BlueAntProjectType.model_validate(t) for t in data["items"]]
+        return []
+
+    async def get_department_masterdata(self) -> List[BlueAntDepartment]:
+        """Fetch department masterdata."""
+        data = await self._request("GET", "/v1/masterdata/departments")
+
+        if isinstance(data, list):
+            return [BlueAntDepartment.model_validate(d) for d in data]
+        elif isinstance(data, dict) and "items" in data:
+            return [BlueAntDepartment.model_validate(d) for d in data["items"]]
+        elif isinstance(data, dict) and "departments" in data:
+            return [BlueAntDepartment.model_validate(d) for d in data["departments"]]
+        return []
+
+    async def get_customer_masterdata(self) -> List[BlueAntCustomer]:
+        """Fetch customer masterdata."""
+        data = await self._request("GET", "/v1/masterdata/customers")
+
+        if isinstance(data, list):
+            return [BlueAntCustomer.model_validate(c) for c in data]
+        elif isinstance(data, dict) and "items" in data:
+            return [BlueAntCustomer.model_validate(c) for c in data["items"]]
+        elif isinstance(data, dict) and "customers" in data:
+            return [BlueAntCustomer.model_validate(c) for c in data["customers"]]
+        return []
+
+    async def get_all_masterdata(self) -> dict:
+        """Fetch all relevant masterdata in parallel."""
+        import asyncio
+        
+        statuses, priorities, types, departments, customers = await asyncio.gather(
+            self.get_status_masterdata(),
+            self.get_priority_masterdata(),
+            self.get_project_type_masterdata(),
+            self.get_department_masterdata(),
+            self.get_customer_masterdata(),
+            return_exceptions=True
+        )
+        
+        return {
+            "statuses": statuses if not isinstance(statuses, Exception) else [],
+            "priorities": priorities if not isinstance(priorities, Exception) else [],
+            "types": types if not isinstance(types, Exception) else [],
+            "departments": departments if not isinstance(departments, Exception) else [],
+            "customers": customers if not isinstance(customers, Exception) else [],
+        }
 
 
 def get_blueant_service() -> BlueAntService:
