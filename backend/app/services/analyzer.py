@@ -1,18 +1,27 @@
 """
 Portfolio Analyzer Service.
 Orchestrates the full analysis pipeline from BlueAnt data to AI scoring.
+
+Supports multiple LLM providers:
+- Gemini (Google)
+- OpenRouter (Mistral, Google)
 """
 
 import logging
-from typing import Optional
+from typing import Optional, Union
 
 from app.ai.gemini import GeminiService
+from app.ai.openrouter import OpenRouterService
+from app.ai.llm_factory import get_llm_service, LLMProvider
 from app.models.domain import NormalizedPortfolio
 from app.models.scoring import PortfolioAnalysis
 from app.services.blueant import BlueAntService
 from app.services.normalizer import DataNormalizer
 
 logger = logging.getLogger(__name__)
+
+# Type alias for LLM services
+LLMService = Union[GeminiService, OpenRouterService]
 
 
 class PortfolioAnalyzer:
@@ -24,16 +33,33 @@ class PortfolioAnalyzer:
     2. Normalize data for LLM consumption
     3. Run AI scoring (Phase 1: projects, Phase 2: portfolio)
     4. Return complete analysis
+    
+    Supports multiple LLM providers via the llm_service parameter.
     """
 
     def __init__(
         self,
         blueant: BlueAntService,
-        gemini: GeminiService,
+        llm_service: Optional[LLMService] = None,
+        # Legacy parameter for backwards compatibility
+        gemini: Optional[GeminiService] = None,
     ):
         self.blueant = blueant
-        self.gemini = gemini
+        
+        # Support both new llm_service and legacy gemini parameter
+        if llm_service is not None:
+            self.llm_service = llm_service
+        elif gemini is not None:
+            self.llm_service = gemini
+        else:
+            # Use factory to get configured default
+            self.llm_service = get_llm_service()
+            
         self.normalizer = DataNormalizer()
+        
+        # Log which provider is being used
+        provider_name = type(self.llm_service).__name__
+        logger.info(f"PortfolioAnalyzer initialized with LLM service: {provider_name}")
 
     async def analyze_portfolio(
         self,
@@ -50,15 +76,26 @@ class PortfolioAnalyzer:
         """
         logger.info(f"Starting analysis for portfolio: {portfolio_id}")
 
-        # Step 1: Fetch data from BlueAnt
-        portfolio = await self.blueant.get_portfolio(portfolio_id)
-        raw_projects = await self.blueant.get_portfolio_projects(portfolio_id)
-        status_masterdata = await self.blueant.get_status_masterdata()
+        # Step 1: Fetch data from BlueAnt (parallel fetch for performance)
+        import asyncio
+        
+        portfolio_task = self.blueant.get_portfolio(portfolio_id)
+        projects_task = self.blueant.get_portfolio_projects(portfolio_id)
+        masterdata_task = self.blueant.get_all_masterdata()
+        
+        portfolio, raw_projects, masterdata = await asyncio.gather(
+            portfolio_task, projects_task, masterdata_task
+        )
 
         logger.info(f"Fetched {len(raw_projects)} projects from BlueAnt")
+        logger.info(f"Loaded masterdata: {len(masterdata.get('statuses', []))} statuses, "
+                   f"{len(masterdata.get('priorities', []))} priorities, "
+                   f"{len(masterdata.get('types', []))} types, "
+                   f"{len(masterdata.get('departments', []))} departments, "
+                   f"{len(masterdata.get('customers', []))} customers")
 
-        # Step 2: Normalize data
-        self.normalizer.set_status_masterdata(status_masterdata)
+        # Step 2: Normalize data with all masterdata
+        self.normalizer.set_all_masterdata(masterdata)
 
         normalized_projects = []
         for project in raw_projects:
@@ -76,7 +113,7 @@ class PortfolioAnalyzer:
         logger.info(f"Normalized {len(normalized_projects)} projects")
 
         # Step 3: Run AI analysis
-        analysis = await self.gemini.full_analysis(normalized_portfolio)
+        analysis = await self.llm_service.full_analysis(normalized_portfolio)
 
         logger.info(
             f"Analysis complete. Found {len(analysis.critical_projects)} critical projects"
@@ -92,11 +129,17 @@ class PortfolioAnalyzer:
         Get normalized portfolio data without AI analysis.
         Useful for previewing data before running full analysis.
         """
-        portfolio = await self.blueant.get_portfolio(portfolio_id)
-        raw_projects = await self.blueant.get_portfolio_projects(portfolio_id)
-        status_masterdata = await self.blueant.get_status_masterdata()
+        import asyncio
+        
+        portfolio_task = self.blueant.get_portfolio(portfolio_id)
+        projects_task = self.blueant.get_portfolio_projects(portfolio_id)
+        masterdata_task = self.blueant.get_all_masterdata()
+        
+        portfolio, raw_projects, masterdata = await asyncio.gather(
+            portfolio_task, projects_task, masterdata_task
+        )
 
-        self.normalizer.set_status_masterdata(status_masterdata)
+        self.normalizer.set_all_masterdata(masterdata)
 
         normalized_projects = []
         for project in raw_projects:

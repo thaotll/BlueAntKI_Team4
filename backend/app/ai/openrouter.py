@@ -1,5 +1,12 @@
 """
-Gemini LLM client for project scoring and portfolio analysis.
+OpenRouter LLM client for project scoring and portfolio analysis.
+
+OpenRouter provides access to multiple LLM providers through a unified API.
+Free tier models available:
+- mistralai/devstral-2512:free
+- google/gemini-2.0-flash-exp:free
+
+Uses OpenAI-compatible API format.
 """
 
 import json
@@ -7,9 +14,9 @@ import logging
 import re
 from typing import List, Optional
 
-import google.generativeai as genai
+import httpx
 
-from app.config import get_settings
+from app.config import get_settings, OPENROUTER_MODELS
 from app.models.domain import NormalizedPortfolio, NormalizedProject
 from app.models.scoring import PortfolioAnalysis, ProjectScore, ScoreValue
 from app.ai.prompts import (
@@ -34,41 +41,171 @@ from app.services.sanity_validator import SanityValidator
 logger = logging.getLogger(__name__)
 
 
-class GeminiError(Exception):
-    """Exception raised for Gemini API errors."""
+class OpenRouterError(Exception):
+    """Exception raised for OpenRouter API errors."""
     pass
 
 
-class GeminiService:
+class OpenRouterService:
     """
-    Client for Gemini-based project scoring.
+    Client for OpenRouter-based project scoring.
+    
+    Provides access to multiple LLM models through OpenRouter's unified API.
+    Compatible with the same interface as GeminiService for easy swapping.
 
     Implements the 2-phase analysis:
     1. Phase 1: Score individual projects (U/I/C/R/DQ)
     2. Phase 2: Generate portfolio-level analysis
+    
+    Available free models:
+    - devstral: mistralai/devstral-2512:free (Code-focused)
+    - gemini-flash: google/gemini-2.0-flash-exp:free (Fast, versatile)
     """
 
     def __init__(
         self,
         api_key: Optional[str] = None,
         model_name: Optional[str] = None,
+        base_url: Optional[str] = None,
     ):
         settings = get_settings()
-        self.api_key = api_key or settings.gemini_api_key
-        self.model_name = model_name or settings.gemini_model
+        self.api_key = api_key or settings.openrouter_api_key
+        self.base_url = base_url or settings.openrouter_base_url
+        self.app_name = settings.openrouter_app_name
+        self.app_url = settings.openrouter_app_url
+        
+        # Resolve model shortname to full model ID
+        raw_model = model_name or settings.openrouter_model
+        if raw_model in OPENROUTER_MODELS:
+            self.model_name = OPENROUTER_MODELS[raw_model]
+            logger.info(f"Resolved model shortname '{raw_model}' to '{self.model_name}'")
+        else:
+            self.model_name = raw_model
+
+        # Initialize headers (always needed for error handling)
+        self.headers = {}
 
         if not self.api_key:
-            logger.warning("Gemini API key not configured!")
+            logger.warning("OpenRouter API key not configured!")
             return
 
-        genai.configure(api_key=self.api_key)
+        # Validate API key format
+        if not self.api_key.startswith("sk-or-"):
+            logger.warning(f"OpenRouter API key has unexpected format (should start with 'sk-or-')")
+        
+        # Setup HTTP client with proper headers
+        self.headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+            "HTTP-Referer": self.app_url or "https://github.com/blueant-portfolio",
+            "X-Title": self.app_name,
+        }
 
-        self.model = genai.GenerativeModel(
-            model_name=self.model_name,
-            system_instruction=SYSTEM_PROMPT,
-        )
+        # Log key info (masked for security)
+        key_preview = f"{self.api_key[:10]}...{self.api_key[-4:]}" if len(self.api_key) > 14 else "***"
+        logger.info(f"OpenRouter service initialized with model: {self.model_name}, key: {key_preview}")
 
-        logger.info(f"Gemini service initialized with model: {self.model_name}")
+    async def _chat_completion(
+        self,
+        messages: List[dict],
+        temperature: float = 0.7,
+        max_tokens: int = 4096,
+        max_retries: int = 3,
+    ) -> str:
+        """
+        Send a chat completion request to OpenRouter with retry logic.
+        
+        Args:
+            messages: List of message dicts with 'role' and 'content'
+            temperature: Sampling temperature (0-2)
+            max_tokens: Maximum tokens in response
+            max_retries: Maximum number of retry attempts
+            
+        Returns:
+            The assistant's response text
+        """
+        if not self.api_key:
+            raise OpenRouterError("OpenRouter API key not configured")
+
+        payload = {
+            "model": self.model_name,
+            "messages": messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+        }
+
+        last_error = None
+        
+        for attempt in range(max_retries):
+            async with httpx.AsyncClient(timeout=180.0) as client:
+                try:
+                    if attempt > 0:
+                        logger.info(f"Retry attempt {attempt + 1}/{max_retries}...")
+                        # Slight temperature increase on retry to get different output
+                        payload["temperature"] = min(temperature + (attempt * 0.1), 1.0)
+                    
+                    response = await client.post(
+                        f"{self.base_url}/chat/completions",
+                        headers=self.headers,
+                        json=payload,
+                    )
+                    response.raise_for_status()
+                    
+                    data = response.json()
+                    
+                    if "error" in data:
+                        error_msg = data.get("error", {})
+                        if isinstance(error_msg, dict):
+                            error_msg = error_msg.get("message", str(error_msg))
+                        last_error = OpenRouterError(f"OpenRouter API error: {error_msg}")
+                        logger.warning(f"API error on attempt {attempt + 1}: {error_msg}")
+                        continue
+                    
+                    if "choices" not in data or len(data["choices"]) == 0:
+                        logger.warning(f"OpenRouter response missing choices on attempt {attempt + 1}")
+                        last_error = OpenRouterError("No response choices returned")
+                        continue
+                    
+                    content = data["choices"][0]["message"]["content"]
+                    
+                    # Log response for debugging (truncated)
+                    if content:
+                        logger.debug(f"OpenRouter response (first 500 chars): {content[:500]}")
+                    else:
+                        logger.warning(f"OpenRouter returned empty content on attempt {attempt + 1}!")
+                        # Check for reasoning_content (DeepSeek R1 format)
+                        reasoning = data["choices"][0]["message"].get("reasoning_content", "")
+                        if reasoning:
+                            logger.info("DeepSeek R1 reasoning found, extracting from it...")
+                            content = reasoning
+                    
+                    if not content:
+                        last_error = OpenRouterError("OpenRouter returned empty response content")
+                        continue
+                    
+                    # Success!
+                    return content
+                    
+                except httpx.HTTPStatusError as e:
+                    error_detail = ""
+                    try:
+                        error_data = e.response.json()
+                        error_detail = error_data.get("error", {}).get("message", str(e))
+                    except:
+                        error_detail = str(e)
+                    last_error = OpenRouterError(f"OpenRouter HTTP error: {error_detail}")
+                    logger.warning(f"HTTP error on attempt {attempt + 1}: {error_detail}")
+                    
+                    # Don't retry on 4xx errors (except 429 rate limit)
+                    if 400 <= e.response.status_code < 500 and e.response.status_code != 429:
+                        raise last_error
+                        
+                except httpx.RequestError as e:
+                    last_error = OpenRouterError(f"OpenRouter request failed: {e}")
+                    logger.warning(f"Request error on attempt {attempt + 1}: {e}")
+        
+        # All retries exhausted
+        raise last_error or OpenRouterError("All retry attempts failed")
 
     def _repair_json(self, text: str) -> str:
         """Attempt to repair common JSON issues from LLM responses."""
@@ -81,8 +218,15 @@ class GeminiService:
         # Fix missing commas after string values: "value" "key" -> "value", "key"
         text = re.sub(r'"\s*\n\s*"', '",\n"', text)
         
+        # Fix single quotes to double quotes (common LLM mistake)
+        # Only for property names and string values, not in content
+        # This is tricky, so we do a conservative approach
+        
         # Remove control characters that break JSON
         text = re.sub(r'[\x00-\x1f\x7f-\x9f]', ' ', text)
+        
+        # Fix unescaped newlines in strings (replace with \n)
+        # This is complex, skip for now
         
         return text
 
@@ -90,7 +234,7 @@ class GeminiService:
         """Extract JSON from LLM response text with robust error handling."""
         if not text or not text.strip():
             logger.error("Empty text provided to _extract_json")
-            raise GeminiError("LLM returned empty response")
+            raise OpenRouterError("LLM returned empty response")
         
         original_text = text
         
@@ -102,6 +246,10 @@ class GeminiService:
             logger.debug("Found JSON in code block")
 
         text = text.strip()
+        
+        # Handle DeepSeek R1's thinking format - skip <think> blocks
+        think_pattern = r"<think>[\s\S]*?</think>"
+        text = re.sub(think_pattern, "", text).strip()
         
         # Handle potential markdown or extra text
         # Find the first { and last }
@@ -152,7 +300,7 @@ class GeminiService:
         logger.error(f"Failed to parse JSON after all attempts")
         logger.error(f"Extracted text (first 1500 chars): {text[:1500]}")
         logger.error(f"Original text (first 500 chars): {original_text[:500]}")
-        raise GeminiError(f"Failed to parse LLM response as JSON: Invalid JSON structure")
+        raise OpenRouterError(f"Failed to parse LLM response as JSON: Invalid JSON structure")
 
     def _parse_project_score(self, data: dict) -> ProjectScore:
         """Parse a single project score from LLM response."""
@@ -191,19 +339,20 @@ class GeminiService:
         max_json_retries: int = 2,
     ) -> List[ProjectScore]:
         """
-        Phase 1: Score multiple projects using Gemini.
+        Phase 1: Score multiple projects using OpenRouter.
         
         Includes retry logic for JSON parsing failures.
         """
         if not self.api_key:
-            raise GeminiError("Gemini API key not configured")
+            raise OpenRouterError("OpenRouter API key not configured")
 
         all_scores: List[ProjectScore] = []
 
         for i in range(0, len(projects), batch_size):
             batch = projects[i : i + batch_size]
             logger.info(
-                f"Scoring projects batch {i // batch_size + 1} ({len(batch)} projects)"
+                f"Scoring projects batch {i // batch_size + 1} ({len(batch)} projects) "
+                f"via OpenRouter ({self.model_name})"
             )
 
             project_data_text = "\n".join(
@@ -218,21 +367,15 @@ class GeminiService:
             # Retry loop for JSON parsing issues
             for json_attempt in range(max_json_retries + 1):
                 try:
-                    if json_attempt > 0:
-                        logger.info(f"Retry attempt {json_attempt}/{max_json_retries} for JSON parsing...")
+                    messages = [
+                        {"role": "system", "content": SYSTEM_PROMPT},
+                        {"role": "user", "content": prompt},
+                    ]
                     
-                    # Use different generation config on retry
-                    generation_config = None
-                    if json_attempt > 0:
-                        generation_config = genai.GenerationConfig(
-                            temperature=0.7 + (json_attempt * 0.15),
-                        )
-                    
-                    response = self.model.generate_content(
-                        prompt,
-                        generation_config=generation_config,
-                    )
-                    response_data = self._extract_json(response.text)
+                    # Adjust temperature on retry to get different output
+                    temp = 0.7 + (json_attempt * 0.15)
+                    response_text = await self._chat_completion(messages, temperature=min(temp, 1.0))
+                    response_data = self._extract_json(response_text)
                     
                     batch_scores = []
                     for score_data in response_data.get("projects", []):
@@ -252,14 +395,14 @@ class GeminiService:
                                     data_quality=ScoreValue(value=1, reasoning="Fehler bei der Analyse"),
                                     is_critical=False,
                                     summary="Fehler bei der Analyse dieses Projekts",
-                                    detailed_analysis="Die Analyse dieses Projekts konnte aufgrund eines technischen Fehlers nicht vollständig durchgeführt werden. Bitte überprüfen Sie die Eingabedaten.",
+                                    detailed_analysis="Die Analyse konnte nicht vollständig durchgeführt werden.",
                                 )
                             )
                     
                     # Success - break out of retry loop
                     break
                     
-                except GeminiError as e:
+                except OpenRouterError as e:
                     last_error = e
                     if "Failed to parse LLM response as JSON" in str(e):
                         if json_attempt < max_json_retries:
@@ -268,15 +411,15 @@ class GeminiService:
                     # Re-raise other errors or final attempt
                     if json_attempt >= max_json_retries:
                         logger.error(f"All JSON parsing attempts failed: {e}")
-                        raise GeminiError(f"Failed to score projects: {e}")
+                        raise OpenRouterError(f"Failed to score projects: {e}")
                     raise
                     
                 except Exception as e:
-                    logger.error(f"Gemini API error during scoring: {e}")
-                    raise GeminiError(f"Failed to score projects: {e}")
+                    logger.error(f"OpenRouter API error during scoring: {e}")
+                    raise OpenRouterError(f"Failed to score projects: {e}")
             
             if batch_scores is None:
-                raise last_error or GeminiError("Failed to score projects: Unknown error")
+                raise last_error or OpenRouterError("Failed to score projects: Unknown error")
                 
             all_scores.extend(batch_scores)
 
@@ -291,9 +434,9 @@ class GeminiService:
         Phase 2: Generate portfolio-level analysis based on project scores.
         """
         if not self.api_key:
-            raise GeminiError("Gemini API key not configured")
+            raise OpenRouterError("OpenRouter API key not configured")
 
-        logger.info(f"Generating portfolio analysis for: {portfolio.name}")
+        logger.info(f"Generating portfolio analysis for: {portfolio.name} via OpenRouter")
 
         scores_summary = format_scores_for_portfolio_prompt(
             [s.model_dump() for s in project_scores]
@@ -305,8 +448,13 @@ class GeminiService:
         )
 
         try:
-            response = self.model.generate_content(prompt)
-            response_data = self._extract_json(response.text)
+            messages = [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": prompt},
+            ]
+            
+            response_text = await self._chat_completion(messages)
+            response_data = self._extract_json(response_text)
 
             analysis = PortfolioAnalysis(
                 portfolio_id=portfolio.id,
@@ -323,8 +471,8 @@ class GeminiService:
             return analysis
 
         except Exception as e:
-            logger.error(f"Gemini API error during portfolio analysis: {e}")
-            raise GeminiError(f"Failed to analyze portfolio: {e}")
+            logger.error(f"OpenRouter API error during portfolio analysis: {e}")
+            raise OpenRouterError(f"Failed to analyze portfolio: {e}")
 
     def _enrich_scores_with_normalized_data(
         self,
@@ -354,18 +502,16 @@ class GeminiService:
         """Run complete 2-phase analysis on a portfolio."""
         logger.info(
             f"Starting full analysis for portfolio: {portfolio.name} "
-            f"({len(portfolio.projects)} projects)"
+            f"({len(portfolio.projects)} projects) via OpenRouter ({self.model_name})"
         )
 
         # Phase 1: Score individual projects
         project_scores = await self.score_projects(portfolio.projects)
 
         # Enrich scores with normalized data for reporting (BEFORE validation)
-        # This ensures the validator has access to status_label, milestones, etc.
         self._enrich_scores_with_normalized_data(project_scores, portfolio)
 
         # Phase 1.5: Sanity Validation - Fix contradictions
-        # This step ensures logical consistency (e.g., completed projects aren't "critical")
         validator = SanityValidator()
         validated_scores, data_warnings = validator.validate_portfolio_scores(project_scores)
         
@@ -392,37 +538,27 @@ class GeminiService:
     ) -> AIPresentationStructure:
         """
         Generate AI-optimized presentation structure based on portfolio analysis.
-        
-        Args:
-            analysis: Complete portfolio analysis with scores
-            
-        Returns:
-            AIPresentationStructure with recommended slides and visualizations
         """
         if not self.api_key:
-            raise GeminiError("Gemini API key not configured")
+            raise OpenRouterError("OpenRouter API key not configured")
 
         logger.info(f"Generating presentation structure for: {analysis.portfolio_name}")
 
-        # Format analysis data for the prompt
         prompt_data = format_analysis_for_presentation_prompt(analysis)
-        
         prompt = PRESENTATION_STRUCTURE_PROMPT_TEMPLATE.format(**prompt_data)
 
         try:
-            # Use a presentation-specific model instance with appropriate system prompt
-            presentation_model = genai.GenerativeModel(
-                model_name=self.model_name,
-                system_instruction=PRESENTATION_STRUCTURE_SYSTEM_PROMPT,
-            )
+            messages = [
+                {"role": "system", "content": PRESENTATION_STRUCTURE_SYSTEM_PROMPT},
+                {"role": "user", "content": prompt},
+            ]
             
-            response = presentation_model.generate_content(prompt)
-            response_data = self._extract_json(response.text)
+            response_text = await self._chat_completion(messages, temperature=0.5)
+            response_data = self._extract_json(response_text)
 
             # Parse slides
             slides = []
             for slide_data in response_data.get("slides", []):
-                # Parse visualizations
                 visualizations = []
                 for viz_data in slide_data.get("visualizations", []):
                     try:
@@ -459,7 +595,6 @@ class GeminiService:
 
         except Exception as e:
             logger.error(f"Failed to generate presentation structure: {e}", exc_info=True)
-            # Return a default structure if AI generation fails
             return self._get_default_presentation_structure(analysis)
 
     def _get_default_presentation_structure(
@@ -550,6 +685,15 @@ class GeminiService:
         )
 
 
-def get_gemini_service() -> GeminiService:
-    """Get a Gemini service instance."""
-    return GeminiService()
+def get_openrouter_service(model_shortname: Optional[str] = None) -> OpenRouterService:
+    """
+    Get an OpenRouter service instance.
+    
+    Args:
+        model_shortname: Optional shortname (devstral, gemini-flash)
+                        If not provided, uses configured model.
+    """
+    settings = get_settings()
+    model_name = settings.get_openrouter_model_id(model_shortname)
+    return OpenRouterService(model_name=model_name)
+

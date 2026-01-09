@@ -1,0 +1,1229 @@
+﻿Pflichtenheft 
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+Dokument-Informationen 
+
+Autor Projektteam 4 
+
+Dokumentversion / Da-
+1.0 / 17.11.2025 
+
+tum 
+
+Dokumentname/-ablage Pflichtenheft 
+
+ 
+
+Projekt-Identifikation 
+
+Projektnummer 03853 
+
+Projektleiter Lara-Sophie Lohdau 
+
+Auftraggeber Thomas Eichler 
+
+ 
+
+Änderungshistorie 
+
+Version Datum Zustand Bearbeitungsart Bearbeiter 
+
+1.0 17.11.2025 In Bearbeitung Ersterstellung Projektteam 4 
+
+  
+
+
+
+Inhaltsverzeichnis 
+
+Pflichtenheft ................................................................................................................................ 1 
+
+1. Einleitung ............................................................................................................................ 4 
+
+2. Beschreibung der Ausgangssituation (IST-Zustand) ............................................................... 5 
+
+3. Zielsetzung und Motivation (SOLL-Zustand) ........................................................................... 6 
+3.1 Verbesserungen gegenüber dem heutigen IST-Zustand ............................................................ 6 
+3.2 Nutzen für Anwenderinnen und Anwender ................................................................................. 6 
+3.3 Nutzen für das Unternehmen / den Auftraggeber ....................................................................... 7 
+
+4. Fachliche Anforderungen ........................................................................................................ 8 
+
+5. Nichtfunktionale Anforderungen ............................................................................................ 11 
+
+6. Technische Spezifikationen .................................................................................................... 13 
+6.1 Systemarchitektur ................................................................................................................... 13 
+6.2 Technische Rahmenbedingungen ........................................................................................... 13 
+6.3 Technologie und KI-Anforderungen ......................................................................................... 13 
+6.4 Software-Schnittstellen und Datenflüsse ................................................................................. 13 
+
+6.4.1 Dateneingabe (Blue Ant) .................................................................................................. 13 
+6.4.2 Verarbeitung (KI-Schnittstelle) .......................................................................................... 14 
+6.4.3 Ausgabeformate ............................................................................................................... 14 
+
+7. Qualitätsanforderungen ......................................................................................................... 15 
+7.1 Zuverlässigkeit und Fehlertoleranz .......................................................................................... 15 
+7.2 Testbarkeit .............................................................................................................................. 15 
+7.3 Dokumentationsanforderungen ............................................................................................... 15 
+7.4 Nachvollziehbarkeit und Konsistenz der KI-Ergebnisse ........................................................... 15 
+7.5 Qualität der Daten und Testumgebung .................................................................................... 16 
+7.6 Datenschutz und Sicherheit..................................................................................................... 16 
+7.7 Sprache und Verständlichkeit .................................................................................................. 16 
+7.8 Wartbarkeit und Erweiterbarkeit .............................................................................................. 16 
+
+8. Projektorganisation ................................................................................................................ 17 
+
+9. Projektplanung ....................................................................................................................... 18 
+9.1 Projektzeitraum ....................................................................................................................... 18 
+9.2 Projektphasen ......................................................................................................................... 18 
+9.3 Meilensteine ........................................................................................................................... 19 
+9.4 Aufwandsschätzung ................................................................................................................ 19 
+
+
+
+9.5 Kritische Abhängigkeiten ......................................................................................................... 20 
+9.6 Hauptrisiken ............................................................................................................................ 20 
+
+10. Abnahmekriterien ................................................................................................................. 21 
+10.1 Erfolgreicher Datenimport ..................................................................................................... 21 
+10.2 Manuelle Auslösung der Analyse ........................................................................................... 21 
+10.3 Vollständige und korrekte KI-Analyse .................................................................................... 21 
+10.4 Ausgabeformat und Ergebnisqualität ..................................................................................... 21 
+10.5 Berücksichtigung nichtfunktionaler Anforderungen ................................................................. 22 
+10.6 Abnahmekriterium: Vollständige Projektdokumentation .......................................................... 22 
+10.7 Abnahmevoraussetzungen durch Meilensteine und Projektorganisation ................................ 22 
+10.8 Formaler Abnahmeprozess ................................................................................................... 22 
+
+11. Genehmigung ....................................................................................................................... 23 
+
+ 
+
+  
+
+
+
+1. Einleitung 
+Dieses Pflichtenheft beschreibt die fachlichen und technischen Anforderungen für das 
+
+Projekt „KI-Analyse von Blue Ant Portfoliodaten“ und dient als verbindliche Grundlage 
+
+zwischen Auftraggeber und Projektteam. Das Dokument hat den Zweck, die geplanten 
+
+Leistungen und Ziele eindeutig zu definieren und sowohl für den Auftraggeber als auch 
+
+für die Entwickler nachvollziehbar zu machen. Das Projekt wird im Rahmen der Lehr-
+
+veranstaltung Management von IV-Projekten im Wintersemester 2025/26 durchge-
+
+führt. Ziel ist die Entwicklung eines Prototyps, der Daten aus der Projektmanagement-
+
+Software Blue Ant automatisiert über Webservices ausliest und mittels frei verfügbarer 
+
+KI-Modelle (Large Language Models) analysiert. Die Ergebnisse werden in einer für 
+
+das Portfoliomanagement verständlichen Form zusammengefasst und bewertet. Hin-
+
+tergrund des Projekts ist die wachsende Bedeutung datengetriebener Entscheidungs-
+
+unterstützung im Multiprojektmanagement. In vielen Unternehmen existiert eine Viel-
+
+zahl paralleler Projekte, deren Statusberichte, Arbeitszeiten, Risiken und Fortschritts-
+
+daten manuell ausgewertet werden müssen. Eine automatisierte, KI-gestützte Analyse 
+
+soll diesen Prozess effizienter, objektiver und konsistenter gestalten. 
+
+Das Pflichtenheft richtet sich an folgende Zielgruppen: 
+
+• Auftraggeber: Herr Thomas Eichler (Blue Ant, Hypergene GmbH), der die fachli-
+
+chen Anforderungen definiert und das Projektergebnis abnimmt. 
+
+• Projektteam: Studierende, die die Analyse konzipieren und prototypisch umset-
+
+zen. 
+
+• Dozent/ Prüfer: Herr Frischmuth, der das Projekt hinsichtlich methodischer Durch-
+
+führung und Dokumentation bewertet. 
+
+Das Pflichtenheft grenzt sich klar vom Lastenheft ab. Während das Lastenheft die An-
+
+forderungen aus Sicht des Auftraggebers beschreibt, konkretisiert dieses Pflichtenheft 
+
+die technische und organisatorische Umsetzung aus Sicht des Projektteams. Es dient 
+
+damit als Arbeitsgrundlage für die Entwicklung, Dokumentation und spätere Abnahme 
+
+des Projekts. 
+
+  
+
+
+
+2. Beschreibung der Ausgangssituation (IST-
+
+Zustand) 
+Die Hypergene GmbH nutzt die Software Blue Ant als Multi-Projektmanagementlö-
+
+sung, die insbesondere im Portfolio- und Ressourcenmanagement von mittelgroßen 
+
+bis großen Unternehmen eingesetzt wird. Blue Ant ermöglicht die Verwaltung zahlrei-
+
+cher Projekte, einschließlich deren Fortschritte, Ressourcenplanung und Statusmel-
+
+dungen. Portfolio-Manager stehen jedoch vor der Herausforderung, aus einer Vielzahl 
+
+von Einzelinformationen, etwa Risiken, To-Dos, Arbeitszeiten, Meilensteinen oder 
+
+textlichen Statusberichten, ein konsistentes Gesamtbild zu gewinnen. Die derzeit vor-
+
+handenen Berichte bieten zwar eine grundlegende Übersicht, liefern aber keine ein-
+
+heitliche, automatisierte Bewertung der Projektsituation. Das führt dazu, dass Bewer-
+
+tungen und Zusammenfassungen bisher manuell erstellt werden müssen. Diese Vor-
+
+gehensweise ist zeitaufwendig, fehleranfällig und stark von der individuellen Erfahrung 
+
+des Anwenders abhängig. Zudem fehlt eine objektive und reproduzierbare Bewertung 
+
+der Projektdaten, wodurch Vergleichbarkeit und Transparenz zwischen Projekten ein-
+
+geschränkt sind. 
+
+Auch technisch bestehen Einschränkungen: 
+
+• Blue Ant stellt zwar REST-Webservices für den Datenexport bereit, doch nicht alle 
+
+benötigten Datenpunkte sind direkt verfügbar. Teilweise müssen Werte über indivi-
+
+duelle Felder oder Vorberechnungen im System zugänglich gemacht werden. 
+
+• Eine automatische Auswertung durch KI findet bisher nicht statt. 
+
+Daher besteht der aktuelle IST-Zustand aus einer Vielzahl unverbundener Informatio-
+
+nen, die durch manuelle Analysen interpretiert werden müssen. Diese Situation er-
+
+schwert sowohl das Portfoliomanagement als auch das strategische Reporting gegen-
+
+über der Geschäftsführung. Mit der zunehmenden Verfügbarkeit leistungsfähiger KI-
+
+Modelle ergibt sich nun die Möglichkeit, diese Auswertungen teilweise zu automatisie-
+
+ren und einheitliche, nachvollziehbare Bewertungen zu erzeugen. Das Projekt setzt 
+
+genau hier an und soll aufzeigen, wie eine solche KI-basierte Analyse von Blue Ant-
+
+Daten prototypisch realisiert werden kann. 
+
+  
+
+
+
+3. Zielsetzung und Motivation (SOLL-Zustand)  
+Das übergeordnete Ziel des Projekts besteht darin, den bisher manuellen, zeitaufwen-
+
+digen und stark subjektiv geprägten Prozess der Projektbewertung im Portfolioma-
+
+nagement durch eine automatisierte, KI-gestützte Analyse zu ersetzen. Zu diesem 
+
+Zweck soll ein Prototyp entwickelt werden, der in der Lage ist, die vorhandenen Roh-
+
+daten aus Blue Ant systematisch auszulesen, aufzubereiten und anhand geeigneter 
+
+KI-Prompts so zu bewerten, dass eine konsistente, nachvollziehbare und einheitliche 
+
+Analyse entsteht. Im Mittelpunkt steht dabei nicht die Entwicklung eines vollumfängli-
+
+chen Produktivsystems, sondern die prototypische Erprobung und der Erkenntnisge-
+
+winn darüber, wie KI-Prompts gestaltet sein müssen, um aus den heterogenen Daten 
+
+im Portfolio reproduzierbare Bewertungen generieren zu können. 
+
+3.1 Verbesserungen gegenüber dem heutigen IST-Zustand 
+Gegenüber dem aktuellen IST-Zustand werden durch die KI-gestützte Analyse insbe-
+
+sondere Verbesserungen in Bezug auf Objektivität, Konsistenz und Effizienz erwartet. 
+
+Während die heutige Bewertung einzelner Projekte häufig vom subjektiven Eindruck 
+
+des jeweiligen Anwenders abhängt, gewährleistet der Prototyp eine einheitliche und 
+
+nachvollziehbare Bewertung, deren Ergebnisse unabhängig von individuellen Ein-
+
+schätzungen reproduziert werden können. Zudem erhöht sich die Prozessgeschwin-
+
+digkeit deutlich: Die zuvor manuelle, zeitintensive Zusammenfassung der zahlreichen 
+
+verstreuten Informationen entfällt und wird durch abrufbare, verständliche und struktu-
+
+rierte KI-Analysen ersetzt. Darüber hinaus führt die KI zu einer verbesserten Daten-
+
+konsolidierung, indem sie die Vielzahl indirekter Faktoren und textbasierter Informati-
+
+onen zu einer kompakten, analytischen Gesamtsicht zusammenführt, die außerdem 
+
+Vergleiche zwischen einzelnen Projekten ermöglicht. 
+
+3.2 Nutzen für Anwenderinnen und Anwender 
+Für den Anwender, insbesondere den Portfolio-Manager, ergibt sich ein unmittelbarer 
+
+operativer Nutzen. Er erhält eine schnelle, verlässliche und fundierte Entscheidungs-
+
+grundlage, die ihm einen detaillierten Überblick über den Status seiner Projekte ver-
+
+schafft und die Identifikation potenzieller Probleme erheblich erleichtert. Die erzeugten 
+
+Ergebnisse können zudem direkt als Kurzzusammenfassung für das Management-Re-
+
+porting genutzt werden, wodurch sich interne Abstimmungs- und Kommunikationspro-
+
+zesse vereinfachen und beschleunigen. 
+
+ 
+
+ 
+
+
+
+3.3 Nutzen für das Unternehmen / den Auftraggeber 
+Auch für das Unternehmen beziehungsweise den Auftraggeber entsteht ein strategi-
+
+scher Mehrwert. Durch das Projekt werden erste Erkenntnisse über die technische und 
+
+organisatorische Machbarkeit einer KI-Anbindung an Blue Ant gewonnen. Der Prototyp 
+
+dient darüber hinaus als demonstrierbarer Lösungsansatz, mit dem sich gegenüber 
+
+Kunden anschaulich zeigen lässt, welche Möglichkeiten eine KI-basierte Analyse der 
+
+Portfoliodaten bietet. 
+
+  
+
+
+
+4. Fachliche Anforderungen  
+Dieser Abschnitt spezifiziert die detaillierten fachlichen (funktionalen) Anforderungen 
+an den Prototyp und gliedert diese in die erforderlichen Umsetzungsschritte. Die Ab-
+kürzung „M“ markiert einen Meilenstein. 
+
+4.1 Datenbereitstellung 
+
+4.1.1 Datenabruf aus Blue Ant 
+
+Der Prototyp muss die projektbezogenen Daten über die Blue Ant Webser-
+ 
+
+vices (REST API) auslesen. 
+
+4.1.2 Portfolio-Spezifikation 
+
+Der Datenabruf wird ausschließlich auf das Test-Portfolio „AI-Portfolio“ ange-
+ 
+
+wendet, das vom Auftraggeber bereitgestellt wird. 
+
+M.1 Meilenstein I: Datenabruf und Validierung 
+
+Erfolgreicher Abruf und Validierung der Daten aus Blue Ant über die definierte 
+
+Schnittstelle. Sicherstellung der Datenqualität (Vollständigkeit, Aktualität, For-
+ 
+
+mat). 
+
+ 
+
+4.2 Technische Infrastruktur 
+
+4.2.1 Konzeption der Datenverarbeitung 
+
+Planung der technischen Infrastruktur zur Weiterverarbeitung der Daten aus 
+ 
+
+M.1 für die KI. 
+
+M.2 Meilenstein II: Infrastruktur 
+
+Aufbau einer Infrastruktur zur Speicherung und Bereitstellung der Blue-Ant-
+
+ Daten für die KI-Verarbeitung. 
+
+ 
+
+4.3 Analyse-Funktionalität (Kern-Logik) 
+
+4.3.1 Auslösung der Analyse 
+
+Die KI-Analyse muss manuell bei Bedarf durch den Benutzer ausgelöst wer-
+
+ den können. Eine automatische, zeitgesteuerte Ausführung ist nicht vorgese-
+
+hen. 
+
+4.3.2 Analyse der Mindest-Parameter (Muss-Kriterien) 
+
+Die KI-Analyse muss die folgenden, im Lastenheft definierten, Mindest-Para-
+
+meter auswerten:  
+
+• Auswertung von Plan- vs. Ist-Aufwand  
+
+• Auswertung der Fortschritte (Plan ca. Ist)  
+ 
+
+• Zusammenfassung des Textfeldes “Status” 
+
+• Zusammenfassung des Textfeldes “Gegenstand” 
+
+• Überblick über die Anzahl von Projekten in einem Projektstatus  
+
+• Überblick Meilensteine 
+
+
+
+4.3.3 Identifikation kritischer Projekte (Muss-Kriterium) 
+
+• Die KI muss kritische Projekte benennen können.  
+
+ • Die Kriterien dafür (z. B. Fortschritt, Meilensteine, Textfeld Status) werden 
+
+im Rahmen der Konzeption durch das Projektteam erarbeitet. 
+
+M.3 Meilenstein III: Zwischenpräsentation (11.12.2025) 
+
+Vorstellung des aktuellen Projektstatus (Planung, Ist-Stand, Risiken) und Ge-
+ 
+
+samteinschätzung des Fortschritts im Rahmen einer Präsentation. 
+
+  
+
+4.4 Ergebnis-Output 
+
+4.4.1 Inhaltliche Anforderungen an den Output (Muss-Kriterien) 
+
+Die Ausgabe muss eine sinnvolle Zusammenfassung liefern, die folgenden 
+
+Punkte erfüllt:  
+
+• Sie muss eine Bewertung enthalten (z. B. mittels Ampeln oder Punktesys-
+
+tem).  
+ 
+
+• Sie muss eine kurze textliche Begründung für die Bewertung liefern.  
+
+• Sie soll einen Fokus auf die Vergleichbarkeit der Projekte legen (z. B. 2 
+
+Projekte haben ähnliche Themen).  
+
+• Sie muss in sinnvollen, kurzen und prägnanten Texten verfasst sein. 
+
+4.4.2 Visuelle Anforderungen an den Output (Soll-Kriterium) 
+
+Die Ausgabe soll visuelle Elemente (z. B. Ampeln, Grafiken) enthalten, sofern 
+ 
+
+diese schnell verständlich sind und einen Nutzen im Business-Alltag bieten. 
+
+4.4.3 Technische Anforderungen an das Ausgabeformat 
+
+Das Ausgabeformat ist flexibel. Bevorzugt wird ein bearbeitbares Format, da-
+ 
+
+mit der Portfolio-Manager es korrigieren kann.  
+
+4.5 Prognose-Fähigkeit 
+
+4.5.1 Analyse von Prognosen (Kann-Kriterium) 
+
+Die KI kann optional Prognosen zu Trends liefern, ggf. zu den zu erwarten-
+
+den Aufwänden und zeitlichen Fortschritten. Ein Fokus auf konkrete Zahlen 
+ 
+
+ist dabei nicht zwingend, Trends sind ausreichend. 
+
+ 
+
+M.4 Meilenstein IV: Output-Generierung 
+
+Generierung von textbasierten und visuellen Outputs aus den Blue-Ant-Daten 
+
+ mithilfe des LLM/KI-Systems. 
+
+ 
+
+M.5 Meilenstein V: Abnahme durch Auftraggeber (22.01.2025) 
+
+Formale Übergabe des Prototyps und der technischen Dokumentation an 
+
+ den Auftraggeber. Prüfung der Funktionsfähigkeit und Erteilung der Abnah-
+
+mebestätigung. 
+
+
+
+ 
+
+M.6 Meilenstein VI: Abschlusspräsentation 
+
+ Projektende 29.01.2026 
+
+Dieser Abschnitt definiert die Anforderungen an das Berichtswesen und die zu erstel-
+
+lende Dokumentation im Projektverlauf. 
+
+ 
+
+Berichtswesen und Dokumentation 
+
+1.1 Wöchentlicher Statusbericht 
+
+Das Projektteam liefert wöchentlich einen kurzen Statusbericht (maximal 
+
+ 0,5 Seiten) an den Auftraggeber. Dieser informiert über Fortschritt, Prob-
+
+leme und nächste Schritte. 
+
+1.2 Feedback-Meetings nach Bedarf  
+
+Auf Wunsch des Projektteams können regelmäßige Feedback-Meetings (z. 
+
+ B. alle zwei Wochen) angesetzt werden, falls das Team dies als notwendig 
+
+erachtet. Die bevorzugten Tools hierfür sind Zoom oder Teams. Die sons-
+
+tige Kommunikation erfolgt per E-Mail. 
+
+1.3 Genehmigung von Change Requests 
+
+Wesentliche Änderungen müssen als formaler Change Request beim Auf-
+ 
+
+traggeber eingereicht und von diesem genehmigt werden. 
+
+1.4 Technische Dokumentation 
+
+Als Teil des finalen Lieferumfangs wird eine technische Beschreibung der 
+
+ KI-Abfragen (Prompts, Variablen) erstellt. Ein detailliertes Benutzerhand-
+
+buch wird nicht erwartet. 
+
+1.5 Zwischenpräsentation 
+
+ Das Projektteam hält am 11.12.2025 eine Zwischenpräsentation über den 
+
+Projektfortschritt (Planung, Ist-Stand, Risiken). 
+
+1.6 Abschlusspräsentation 
+
+ Das Projekt endet mit der Abschlusspräsentation am 29.01.2026, die die 
+
+Ergebnisse des Projekts vorstellt. 
+
+  
+
+
+
+5. Nichtfunktionale Anforderungen 
+
+Dieser Abschnitt spezifiziert die nichtfunktionalen Anforderungen, welche die qualitati-
+
+ven Merkmale sowie die technischen und operativen Randbedingungen für den Pro-
+
+totyp definieren. 
+ 
+
+5.1 Technologie (KI) 
+
+5.1.1 Lizenzfreie KI-Nutzung 
+
+ Für die Umsetzung sollen nur KI-Modelle gewählt werden, die kostenfrei 
+
+und nutzbar sind. 
+
+5.1.2 Technologiereife 
+
+ Die technologische Basis soll etabliert und erprobt sein. Auf experimentelle 
+
+oder brandneue Technologien soll verzichtet werden. 
+
+5.2 Technologie (Plattform) 
+
+5.2.1 Plattformkompatibilität 
+
+ Der Prototyp muss auf einer gängigen Windows-Arbeitsstation ohne spezi-
+
+elle Hardwareanforderungen lauffähig sein. 
+
+5.3 Budget 
+
+5.3.1 Kostenfreiheit im Betrieb 
+
+ Der Betrieb der Analyse, einschließlich der KI-Abfragen, darf keine laufen-
+
+den Kosten verursachen. 
+
+5.4 Qualität & Usability 
+
+5.4.1 Praxistauglichkeit 
+
+ Die erstellten Analysen müssen einen praktischen Mehrwert im täglichen 
+
+Geschäftsbetrieb bieten und logisch aufgebaut sein. 
+
+5.4.2 Intuitive Verständlichkeit 
+
+ Die Ausgabe muss so aufbereitet sein, dass der Anwender die Kerninfor-
+
+mationen intuitiv und ohne lange Einarbeitung erfassen kann. 
+
+5.4.3 Konsistenz der KI-Ergebnisse 
+
+Die KI-Ergebnisse müssen konsistent und reproduzierbar sein. Bei gleicher 
+
+ Datenlage sollen eindeutige und nachvollziehbare Bewertungen generiert 
+
+werden. 
+
+5.5 Sprache 
+
+5.5.1 Lokalisierung 
+
+ Alle Ausgaben des Prototyps sind in deutscher Sprache. 
+
+5.6 Abgrenzung (Out of Scope) 
+
+5.6.1 Lieferstatus (Prototyp) 
+
+
+
+Es wird ein Prototyp geliefert. Die Entwicklung eines vollumfänglich getes-
+ teten, produktionsreifen Systems ist nicht Teil des Projektziels. 
+
+5.6.2 Wartung und Support 
+
+Wartung (Maintenance), Support oder die Bereitstellung von Updates nach 
+ Projektende sind explizit nicht Teil des Lieferumfangs. 
+
+5.6.3 Ausgeschlossene Lieferobjekte 
+
+Die Erstellung von Mockups, User-Stories oder ein Benutzerhandbuch wird 
+ nicht erwartet. 
+
+  
+
+
+
+6. Technische Spezifikationen  
+
+Die technischen Spezifikationen konkretisieren die fachlichen Anforderungen in imple-
+
+mentierbare technische Details und legen fest, wie die Lösung umgesetzt wird. 
+
+6.1 Systemarchitektur 
+
+Die zu entwickelnde Lösung ist als Prototyp (Proof of Concept) konzipiert. Eine pro-
+
+duktionsreife Implementierung ist nicht Gegenstand dieses Projekts. Die Prototyp-Lö-
+
+sung wird mit Testdaten betrieben und kann optional als Docker-Image bereitgestellt 
+
+werden, um sie einfach starten und demonstrieren zu können. Dies ist jedoch keine 
+
+zwingende Anforderung. Der Prototyp dient als Konzeptnachweis für die Integration 
+
+von KI-gestützter Portfolio-Analyse. 
+
+6.2 Technische Rahmenbedingungen 
+
+Die entwickelte Lösung muss auf einem Standard-Windows-PC lauffähig und bedien-
+
+bar sein. Weitere Betriebssysteme können unterstützt werden, sind aber nicht erfor-
+
+derlich. Die Lösung muss ohne spezielle Hardware-Anforderungen auf Standard-Hard-
+
+ware des Auftraggebers lauffähig sein. Besondere Hardware-Investitionen sind nicht 
+
+notwendig. 
+
+6.3 Technologie und KI-Anforderungen 
+
+Für die Implementierung von KI-Komponenten gelten folgende Vorgaben: 
+
+1. Es dürfen ausschließlich frei verfügbare KI-Modelle verwendet werden. Der Einsatz 
+
+von kostenpflichtigen oder lizenzierten KI-Modellen ist nicht gestattet. 
+
+2. Es steht kein Budget für KI-API-Calls zur Verfügung. Kostenpflichtige API-Services 
+
+sind daher ausgeschlossen.  
+
+3. Die verwendeten Technologien müssen etabliert und bewährt sein. Der Einsatz von 
+
+experimentellen oder sehr neuen Technologien wird vermieden, da diese nur be-
+
+grenzt dokumentiert und unterstützt sind. 
+
+4. Die KI soll hauptsächlich analytisch unterstützen. Sie wertet die aus Blue Ant aus-
+
+gelesenen Daten aus und erstellt daraus eine strukturierte Bewertung des Portfo-
+
+lios.  
+
+6.4 Software-Schnittstellen und Datenflüsse 
+
+6.4.1 Dateneingabe (Blue Ant) 
+
+Die Datenbeschaffung erfolgt über die Blue Ant Webservices (REST API). Die Lösung 
+
+muss das spezifische Test-Portfolio namens „AI-Portfolio“ adressieren. Beim Start der 
+
+
+
+Abfrage wird eine Liste der Projekt-IDs aus diesem Portfolio dynamisch abgerufen, 
+
+wobei die Anzahl der Projekte variabel ist. Für jede Projekt-ID in der abgerufenen Liste 
+
+müssen anschließend die definierten Mindest-Parameter (siehe Kapitel 3) über die 
+
+Web-Services abgerufen werden. 
+
+6.4.2 Verarbeitung (KI-Schnittstelle) 
+
+Die Lösung implementiert eine Schnittstelle zu einem externen, frei verfügbaren Large 
+
+Language Model (LLM), über welche die aufbereiteten Projektdaten zur Analyse trans-
+
+feriert und die Ergebnisse empfangen werden. Die zugehörige technische Dokumen-
+
+tation fokussiert sich explizit auf die Darstellung der verwendeten KI-Abfragen. 
+
+6.4.3 Ausgabeformate 
+
+Das Ausgabeformat der Analyseergebnisse ist flexibel gestaltet. Die Lösung soll die 
+
+Ergebnisse in einem gängigen, bearbeitbaren Format bereitstellen. Als bevorzugtes 
+
+Format gilt (Microsoft) PowerPoint, da es die Bearbeitbarkeit durch den Portfolio-Ma-
+
+nager ermöglicht. Weitere mögliche Formate sind (Microsoft) Word, ein reines Text-
+
+Format oder eine kleine, HTML-basierte Web-Anwendung, wobei explizit kein vollum-
+
+fängliches Dashboard gefordert ist. Ein PDF-Format wird als weniger sinnvoll erachtet, 
+
+da es nicht bearbeitbar ist. 
+
+  
+
+
+
+7. Qualitätsanforderungen 
+
+Die Qualitätsanforderungen definieren zentrale Eigenschaften, die der zu entwickeln-
+
+der Prototyp im Hinblick auf Zuverlässigkeit, Verständlichkeit, Wartbarkeit sowie Er-
+
+gebnisqualität erfüllen muss. Sie stellen sicher, dass die Lösung für den Auftraggeber 
+
+praktikabel, nachvollziehbar und technisch stabil nutzbar ist. 
+
+7.1 Zuverlässigkeit und Fehlertoleranz 
+
+Der Prototyp muss zuverlässig funktionsfähig sein und die Blue-Ant-Daten bei jedem 
+
+Aufruf korrekt verarbeiten. Fehlerhafte Eingaben oder unerwartete Datenstrukturen 
+
+sollen nicht zum Abbruch des Systems führen, sondern kontrolliert abgefangen wer-
+
+den. Störungen im Blue-Ant-Testsystem (z.B. unvollständige API-Daten) fallen nicht in 
+
+den Verantwortungsbereich des Projektteams und werden dem Auftraggeber kommu-
+
+niziert. 
+
+7.2 Testbarkeit 
+
+Für die Mindestfunktionalität (Datenabruf, KI-Auswertung, Ergebnisoutput) müsse klar 
+
+definierte Testfälle vorliegen, anhand derer die Anforderungen überprüft werden. Die 
+
+Tests erfolgen ausschließlich mit dem vom Auftraggeber bereitgestellten Test-Portfolio. 
+
+Änderungen und Ergänzungen dieser Testdaten zur Verbesserung der Demonstrier-
+
+barkeit bleiben dem Auftraggeber vorbehalten. 
+
+7.3 Dokumentationsanforderungen 
+
+Das Projektteam erstellt eine technische Dokumentation der KI-Abfragen. Diese um-
+
+fasst insbesondere: 
+
+• Beschreibung aller verwendeten Prompts 
+
+• Verwendete Variablen/Datenpunkte  
+
+• Aufbau bzw. Struktur der KI-Analyselogik 
+
+Ein detailliertes Benutzerhandbuch ist nicht Teil des Lieferumfangs. Ebenso werden 
+
+weder Wartung, Support noch Updates nach Projektende bereitgestellt. 
+
+7.4 Nachvollziehbarkeit und Konsistenz der KI-Ergebnisse 
+
+Die Ergebnisse der KI müssen nachvollziehbar, logisch strukturiert und inhaltlich kon-
+sistent sein. Bei identischen oder vergleichbaren Eingabedaten soll das KI-Modell ei-
+nen einheitlichen Schreibstil (Wording), eine gleichbleibende Ergebnisstruktur und 
+eine konsistente Bewertungslogik liefern. 
+
+
+
+Ziel ist es, dass die erzeugten Statusberichte unabhängig vom Zeitpunkt der Ausfüh-
+rung oder kleineren Datenvariationen vergleichbar, professionell formuliert und inter-
+pretationsarm sind. Der Output darf keine stark wechselnden Formulierungen, über-
+mäßigen Ausschmückungen oder stilistische Abweichungen enthalten, die das Ver-
+ständnis oder die Vergleichbarkeit erschweren. 
+
+7.5 Qualität der Daten und Testumgebung 
+
+Der Auftraggeber stellt geeignete Testdaten bereit und kann diese bei Bedarf anpassen 
+
+– z.B. durch das Ergänzen zusätzlicher Herausforderungen wie Terminverschiebun-
+
+gen, verspäteten Meilensteinen oder detaillierteren Projektbeschreibungen – um rea-
+
+listische und aussagekräftige Analysen zu ermöglichen. Für die inhaltliche Qualität und 
+
+Korrektheit der bereitgestellten Daten ist ausschließlich der Auftraggeber verantwort-
+
+lich. 
+
+7.6 Datenschutz und Sicherheit 
+
+Da ausschließlich vom Auftraggeber bereitgestellte Testdaten genutzt werden und 
+
+keine personenbezogenen Daten erforderlich sind, bestehen keine erweiterten Daten-
+
+schutzanforderungen. Die Datenverarbeitung erfolgt lokal bzw. über frei verfügbaren 
+
+KI-Modelle ohne externe, kostenpflichtige Cloud-APIs. 
+
+7.7 Sprache und Verständlichkeit 
+
+Sämtliche Ausgaben des Systems (inklusive der textlichen KI-Analyse) müssen voll-
+
+ständig in deutscher Sprache erfolgen. Die Texte sollen kurz, prägnant und verständ-
+
+lich sein. 
+
+7.8 Wartbarkeit und Erweiterbarkeit 
+
+Da es sich um einen Prototyp handelt, ist keine langfristige Wartbarkeit erforderlich. 
+
+Dennoch wird der Code so strukturiert, dass Erweiterungen (z.B. zusätzliche Parame-
+
+ter oder weitere Ausgabeformate) prinzipiell möglich sind. 
+
+  
+
+
+
+8. Projektorganisation 
+Der Auftraggeber von Blue Ant Hypergene GmbH wird durch den Herrn Thomas Ei-
+
+cher vertreten. Er ist als Auftraggeber unter der E-Mail-Adresse t.eichler@blueant.de 
+
+erreichbar. Das Projektteam besteht aus acht Mitarbeitenden, die folgend aufgelistet 
+
+sind: 
+
+Projektmitglieder (Interne Rollen) 
+
+Name Rolle E-Mail-Adresse Matrikelnr. 
+
+Lara-Sophie  Lara-Sophie.Lohdau@Student.HTW-Ber-
+Projektleiter 587503 
+
+Lohdau  lin.de 
+
+Max Otto Jörn stellvertretener Max.Budde@Student.HTW-Berlin.de 
+587730 
+
+Budde Projektleiter  
+
+Ngo Tuyet Huong Ngo.Dinh@Student.HTW-Berlin.de 
+
+Claudia Dinh Teammitglied 575272 
+ 
+
+Mera Gebreyes Teammitglied Mera.Gebreyes@Student.HTW-Berlin.de 588218 
+
+Jordan Schultka Teammitglied Jordan.Schultka@Student.HTW-Berlin.de 586959 
+
+Vu Phuong Thao 
+Teammitglied Vu.Stein@Student.HTW-Berlin.de 587205 
+
+Stein 
+
+Kieu Trang Tran Teammitglied KieuTrang.Tran@Student.HTW-Berlin.de 586967 
+
+Aaron Ziegler Teammitglied Aaron.Ziegler@Student.HTW-Berlin.de 588522 
+
+ 
+
+Externe Rollen 
+
+Rolle Ansprechpartner Verantwortung 
+
+Auftraggeber (PO) Herr Thomas Eichler Dient als Hauptansprechpartner für fachli-
+
+t.eichler@blueant.de che Rückfragen 
+
+Technischer An- Herr Martin Zellmer  Dient als Ansprechpartner für alle techni-
+
+sprechpartner martin.zellmer@hypergene.com schen Fragen zum Datenzugriff und der 
+
+Nutzung der Blue Ant Webservices (REST 
+
+API) und zu Klärung der technischen Rah-
+
+menbedingungen für die KI-Anbindung. 
+
+Dozent Herr Frischmuth  Zuständig für Leistungsbewertung und 
+
+frischmuth@gmx.de PM-Wissensvermittlung 
+
+ 
+
+
+
+9. Projektplanung 
+
+9.1 Projektzeitraum 
+
+• Projektstart: 20. November 2025 
+
+• Projektende: 29. Januar 2026 (Abschlusspräsentation) 
+
+• Projektdauer: 10 Wochen 
+
+9.2 Projektphasen 
+Das Projekt gliedert sich in drei Hauptphasen, die den definierten Meilensteinen ent-
+
+sprechen 
+
+Phase Zeitraum Hauptaktivitäten Meilensteine dieser 
+
+Phase 
+
+Phase 1: Vorberei- 20.11 - 27.11 Projektsetup, Blue Ant M.1: Datenabruf und Vali-
+
+tung API-Integration, Test- dierung 
+
+daten validieren 
+
+Phase 2: Umset- 05.12 - KI-Anbindung, Daten- M.2: Infrastruktur 
+zung 14.01 verarbeitung, Prompt- M.3: Zwischenpräsenta-
+
+Entwicklung, Datenvisu- tion 
+
+alisierung, Tests 
+M.4: Output-Generierung 
+
+Phase 3: Abschluss 15.01 - Dokumentation, Ab- M.5: Abnahme durch AG 
+29.01 nahme M.6: Projektende 
+
+ 
+
+  
+
+
+
+9.3 Meilensteine 
+Das Projekt wird in 10 Wochen vom 20.11.2025 bis 29.01.2026 durchgeführt. Die Steu-
+
+erung erfolgt über die folgenden Meilensteine: 
+
+Nr. Meilenstein Datum Phase Verantwortlich Akzeptanzkriterium 
+
+Erfolgreicher Abruf 
+Datenabruf und Va-
+
+M.1 
+lidierung 27.11.2025 1 Gesamtteam und Validierung der 
+
+Daten aus Blue Ant 
+
+Infrastruktur für KI-
+M.2 Infrastruktur 11.12.2025 2 Gesamtteam Verarbeitung aufge-
+
+baut 
+
+Präsentation über 
+Zwischenpräsenta-
+
+M.3 
+tion 11.12.2025 2 Gesamtteam Projektfortschritt ge-
+
+halten 
+
+Output-Generie- PowerPoint-Gene-
+M.4 
+
+rung 14.01.2025 3 Gesamtteam 
+rierung funktioniert 
+
+Abnahme durch Abnahmebestäti-
+M.5 
+
+Auftraggeber 22.01.2026 3 Gesamtteam 
+gung erhalten 
+
+Abschlusspräsenta-
+M.6 Projektende 29.01.2026 3 Gesamtteam 
+
+tion gehalten 
+
+9.4 Aufwandsschätzung 
+Rahmenbedingungen: 
+
+• Teamgröße: 8 Personen 
+
+• Verfügbarer Aufwand: 5 Stunden pro Person pro Woche 
+
+• Projektdauer: 10 Wochen (effektiv ~8 Wochen wegen Weihnachtspause) 
+
+Gesamtkapazität: 
+
+• Pro Woche: 8 Personen × 5h = 40 Stunden = 5 Personentage (PT) 
+
+• Gesamt: ~40 PT über die Projektlaufzeit 
+
+Geplante Verteilung: 
+
+• Phase 1 (2 Wochen): ~10 PT 
+
+• Phase 2 (2 Wochen): ~10 PT   
+
+• Phase 3 (6 Wochen): ~20 PT 
+
+Hinweis: 1 Personentag (PT) = 8 Arbeitsstunden 
+
+ 
+
+ 
+
+ 
+
+
+
+9.5 Kritische Abhängigkeiten 
+1. Blue Ant API-Zugang ist Voraussetzung für Phase 1 
+
+2. Erfolgreicher Datenabruf (M.1) ist Voraussetzung für Phase 2 
+
+3. Funktionierendes KI-Modell (M.2) ist Voraussetzung für M.4 
+
+4. Abnahme muss VOR 29.01. erfolgen (wenig Puffer!) 
+
+9.6 Hauptrisiken 
+Eintritts- Auswir-
+
+Nr. Risiko Gegenmaßnahmen 
+wahrsch. kung 
+
+• Mehrere KI-Modelle testen 
+Unzureichende 
+
+• Frühzeitiger Prompt-Test 
+R1 Qualität des kos- Mittel Hoch 
+
+• Scope-Anpassung per 
+tenlosen KI-Modells 
+
+Change Request 
+
+• Kritische Aufgaben vor 
+
+18.12. Abschließen 
+Zeitverlust durch 
+
+R2 Hoch Mittel • Puffer vor Abnahme einpla-
+Weihnachtspause 
+
+nen 
+
+• Realistische Zeitplanung 
+
+• Klare Aufgabenverteilung 
+Ausfall eines Team-
+
+R3 Mittel Mittel • Dokumentation in Blue Ant 
+mitglieds 
+
+• Wissensaustausch im Team 
+
+• Frühzeitige Validierung der 
+
+Unvollständige Daten 
+
+oder fehlerhafte • Rücksprache mit Auftragge-
+R4 Mittel Mittel 
+
+Testdaten in Blue ber 
+Ant • Fehlertoleranz im Code ein-
+
+bauen 
+
+• Priorisierung der Mindest-
+
+Parameter 
+Scope zu ambitio-
+
+• Change Request Prozess 
+R5 niert für verfügbare Mittel Niedrig 
+
+nutzen 
+Zeit 
+
+• Agile Anpassung des Um-
+
+fangs 
+
+  
+
+
+
+10. Abnahmekriterien 
+Die Abnahme des Projekts „KI-Analyse von Blue Ant Portfoliodaten“ erfolgt durch den 
+Auftraggeber, sobald alle im Lastenheft definierten funktionalen und nichtfunktionalen 
+Anforderungen, die im Projektplan festgelegten Meilensteine sowie die vereinbarten 
+Lieferobjekte vollständig und nachweislich erfüllt sind. Grundlage für die Abnahme bil-
+det ein lauffähiger Prototyp, der die definierten Mindestanforderungen an Datenimport, 
+KI-Analyse und Ausgabe erfüllt und auf einem Standard-Windows-PC betrieben wer-
+den kann. 
+
+10.1 Erfolgreicher Datenimport 
+Ein zentraler Bestandteil der Abnahmekriterien ist der erfolgreiche Abruf sowie die Va-
+lidierung der Projektdaten aus der Blue-Ant-Testinstanz über die REST-API. Der Pro-
+totyp muss in der Lage sein, die Daten des Testportfolios „AI-Portfolio“ fehlerfrei ein-
+zulesen und vollständig zu verarbeiten. Nach dem Abruf muss gewährleistet sein, dass 
+Struktur, Inhalt und Format der Daten korrekt interpretiert und weiterverarbeitet wer-
+den. Mit Erfüllung dieser Anforderungen gilt der Meilenstein M.1 als erreicht und die 
+technische Grundlage für alle folgenden Projektphasen als gesichert. 
+
+10.2 Manuelle Auslösung der Analyse 
+Ein weiterer wesentlicher Abnahmepunkt besteht darin, dass die Analyse der Daten 
+manuell, also ausschließlich auf Abruf, ausgelöst werden kann. Die Durchführung 
+muss reproduzierbar sein und darf keinen automatisierten Hintergrundprozess erfor-
+dern. Die Anforderung gilt erst dann als erfüllt, wenn die manuelle Triggerfunktion zu-
+verlässig funktioniert und stabile Analyseergebnisse erzeugt. 
+
+10.3 Vollständige und korrekte KI-Analyse 
+Die KI-Analyse muss mindestens alle im Lastenheft festgelegten Muss-Parameter ab-
+decken. Dazu gehören die Auswertung der Plan- und Ist-Aufwände, die Analyse des 
+Projektfortschritts zum Stichtag, die Auswertung der Felder „Status“ und „Gegenstand“, 
+die Erstellung eines Überblicks über Projektstatus und Meilensteine sowie die eindeu-
+tige Identifikation kritischer Projekte. Die Analyseergebnisse müssen klar, nachvoll-
+ziehbar und logisch begründet sein. Ein Projekt gilt erst dann als erfolgreich analysiert, 
+wenn alle genannten Mindestparameter im Output sichtbar, korrekt berücksichtigt und 
+plausibel bewertet wurden. 
+
+10.4 Ausgabeformat und Ergebnisqualität 
+Auch das Ausgabeformat stellt ein verbindliches Abnahmekriterium dar. Der Prototyp 
+muss die KI-Ergebnisse in einem bearbeitbaren Format, bevorzugt als PowerPoint-
+Datei, erzeugen. Die Struktur der Ausgabe muss verständliche, kurze und geschäfts-
+taugliche Zusammenfassungen beinhalten. Zusätzlich müssen Bewertungen nach ei-
+nem einheitlichen System – etwa durch Ampellogik oder ein Punktesystem – enthalten 
+sein, ergänzt durch kurze Erläuterungen in deutscher Sprache. Die Inhalte müssen für 
+Portfolio-Manager unmittelbar nutzbar sein, ohne dass zusätzliche Interpretation 
+
+
+
+notwendig ist. Der Meilenstein M.4 gilt erst dann als erreicht, wenn mindestens ein 
+vollständiges und fachlich korrektes Output-Beispiel erfolgreich generiert wurde. 
+
+10.5 Berücksichtigung nichtfunktionaler Anforderungen 
+Neben den funktionalen Aspekten fließen auch die nichtfunktionalen Anforderungen in 
+die Abnahme ein. Der Prototyp muss vollständig auf Basis frei verfügbarer KI-Modelle 
+funktionieren, ohne Nutzung kostenpflichtiger APIs, und auf einem Standard-Windows-
+Rechner lauffähig sein. Darüber hinaus müssen die erzeugten Analysen konsistent, 
+nachvollziehbar und qualitativ stabil sein. Ebenso erforderlich ist eine intuitive und stö-
+rungsfreie Bedienbarkeit des Systems. 
+
+10.6 Abnahmekriterium: Vollständige Projektdokumentation 
+Ein weiterer Bestandteil der Abnahme ist die vollständige Bereitstellung der vorgese-
+henen Projektdokumentation. Hierzu zählen insbesondere das Pflichtenheft, die wö-
+chentlichen Statusberichte, eine verständliche technische Beschreibung der verwen-
+deten KI-Prompts und Variablen sowie eine aussagekräftige Abschlusspräsentation. 
+Sämtliche Dokumente müssen vollständig, korrekt und fristgerecht abgegeben worden 
+sein. 
+
+10.7 Abnahmevoraussetzungen durch Meilensteine und Projek-
+torganisation 
+Die Abnahme kann ausschließlich dann erfolgen, wenn alle Meilensteine M.1 bis M.6 
+gemäß Projektplanung erreicht und ordnungsgemäß in Blue Ant dokumentiert wurden. 
+Dazu gehören unter anderem der erfolgreiche Datenabruf, der Aufbau der Infrastruk-
+tur, die Zwischenpräsentation, die funktionierende Output-Generierung, die formelle 
+Abnahme durch den Auftraggeber sowie die Abschlusspräsentation am 29. Januar. 
+Auch die Einhaltung des Zeitplans, die Berücksichtigung der Weihnachtspause und 
+die rechtzeitige Bearbeitung möglicher Change Requests gehen indirekt in die Abnah-
+mebewertung ein. 
+
+10.8 Formaler Abnahmeprozess 
+Die Abnahme selbst erfolgt im Rahmen eines formellen Abnahmetermins, der dem 
+Meilenstein M.5 entspricht. Der Auftraggeber überprüft dabei, ob der Prototyp die ge-
+forderten Funktionalitäten bereitstellt, ob die Analyseergebnisse fachlich überzeugend 
+sind und ob die Dokumentation vollständig vorliegt. Die Abnahme gilt als erfolgreich 
+abgeschlossen, sobald der Auftraggeber eine schriftliche Bestätigung – beispielsweise 
+per E-Mail – erteilt und keine offenen Mängel bestehen. 
+
+ 
+
+ 
+
+ 
+
+
+
+11. Genehmigung 
+Die Genehmigung des Pflichtenhefts erfolgt mit Unterschrift des Auftraggebers und-
+nehmers. Damit wird auch der Projektplan bestätigt und abgenommen. Alternativ 
+kann die Genehmigung auch schriftlich per Bestätigung in einer E-Mail vorgenom-
+men werden. 
+
+ 
+
+________________________    ______________________________ 
+
+Datum, Ort      Unterschrift des Auftraggebers  
+
+ 
+
+_______________________________ 
+
+Unterschrift des Auftragnehmers
