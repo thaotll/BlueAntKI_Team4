@@ -83,10 +83,17 @@ if not exist ".env" (
     echo.
 )
 
-:: Frontend im Browser öffnen (vor Backend, da Backend blockiert)
+:: Frontend-Server im Hintergrund starten
 echo.
-echo [INFO] Frontend wird im Browser geoeffnet...
-start "" "%FRONTEND_DIR%\index.html"
+echo [INFO] Frontend-Server wird gestartet...
+start "BlueAnt Frontend Server" cmd /c "cd /d "%FRONTEND_DIR%" && python -m http.server 3000"
+
+:: Kurz warten damit Frontend-Server starten kann
+timeout /t 2 /nobreak >nul
+
+:: Browser öffnen
+echo [INFO] Browser wird geoeffnet...
+start "" "http://localhost:3000"
 
 :: Backend starten
 echo.
@@ -97,9 +104,10 @@ echo    Anwendung erfolgreich gestartet!
 echo ============================================
 echo.
 echo Backend laeuft auf: http://localhost:8000
-echo Frontend: %FRONTEND_DIR%\index.html
+echo Frontend laeuft auf: http://localhost:3000
 echo.
 echo Zum Beenden: Schliesse dieses Fenster oder druecke Ctrl+C
+echo              (Frontend-Server muss separat geschlossen werden)
 echo.
 echo ============================================
 echo    Backend Log:

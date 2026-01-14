@@ -102,20 +102,49 @@ fi
 
 echo -e "${GREEN}✓ Backend läuft (PID: $BACKEND_PID)${NC}"
 
-# Frontend im Browser öffnen
+# Frontend-Server starten
 echo ""
-echo -e "${YELLOW}⚙ Frontend wird im Browser geöffnet...${NC}"
+echo -e "${YELLOW}⚙ Frontend-Server wird gestartet...${NC}"
+cd "$FRONTEND_DIR" || {
+    echo -e "${RED}❌ Fehler: Frontend-Verzeichnis nicht gefunden!${NC}"
+    kill $BACKEND_PID 2>/dev/null
+    read -p "Drücke Enter zum Beenden..."
+    exit 1
+}
+
+# Python HTTP-Server für Frontend starten (Port 3000)
+python3 -m http.server 3000 --bind 127.0.0.1 &
+FRONTEND_PID=$!
+
+# Kurz warten, damit der Frontend-Server hochfahren kann
+sleep 2
+
+# Prüfen ob Frontend-Server läuft
+if ! kill -0 $FRONTEND_PID 2>/dev/null; then
+    echo -e "${RED}❌ Fehler: Frontend-Server konnte nicht gestartet werden!${NC}"
+    kill $BACKEND_PID 2>/dev/null
+    read -p "Drücke Enter zum Beenden..."
+    exit 1
+fi
+
+echo -e "${GREEN}✓ Frontend-Server läuft (PID: $FRONTEND_PID)${NC}"
+
+# Browser öffnen mit URL
+echo ""
+echo -e "${YELLOW}⚙ Browser wird geöffnet...${NC}"
 sleep 1
+
+FRONTEND_URL="http://localhost:3000"
 
 # Browser öffnen (macOS)
 if command -v open &> /dev/null; then
-    open "$FRONTEND_DIR/index.html"
+    open "$FRONTEND_URL"
 # Linux
 elif command -v xdg-open &> /dev/null; then
-    xdg-open "$FRONTEND_DIR/index.html"
+    xdg-open "$FRONTEND_URL"
 else
     echo -e "${YELLOW}⚠ Browser konnte nicht automatisch geöffnet werden.${NC}"
-    echo "Bitte öffne manuell: $FRONTEND_DIR/index.html"
+    echo "Bitte öffne manuell: $FRONTEND_URL"
 fi
 
 echo ""
@@ -123,16 +152,18 @@ echo -e "${GREEN}============================================${NC}"
 echo -e "${GREEN}   ✓ Anwendung erfolgreich gestartet!${NC}"
 echo -e "${GREEN}============================================${NC}"
 echo ""
-echo -e "Backend läuft auf: ${BLUE}http://localhost:8000${NC}"
-echo -e "Frontend: ${BLUE}$FRONTEND_DIR/index.html${NC}"
+echo -e "Backend läuft auf:  ${BLUE}http://localhost:8000${NC}"
+echo -e "Frontend läuft auf: ${BLUE}http://localhost:3000${NC}"
 echo ""
 echo -e "${YELLOW}Zum Beenden: Drücke Ctrl+C${NC}"
 echo ""
 
-# Auf Benutzer-Interrupt warten und dann Backend beenden
+# Auf Benutzer-Interrupt warten und dann beide Server beenden
 cleanup() {
     echo ""
     echo -e "${YELLOW}⚙ Anwendung wird beendet...${NC}"
+    kill $FRONTEND_PID 2>/dev/null
+    echo -e "${GREEN}✓ Frontend-Server gestoppt${NC}"
     kill $BACKEND_PID 2>/dev/null
     echo -e "${GREEN}✓ Backend gestoppt${NC}"
     echo ""
@@ -141,6 +172,6 @@ cleanup() {
 
 trap cleanup SIGINT SIGTERM
 
-# Warten bis Benutzer beendet
-wait $BACKEND_PID
+# Warten bis einer der Prozesse beendet wird
+wait $BACKEND_PID $FRONTEND_PID
 
