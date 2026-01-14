@@ -1,30 +1,30 @@
 # FastAPI & Server
-fastapi==0.115.6
-uvicorn[standard]==0.34.0
-pydantic==2.10.3
-pydantic-settings==2.6.1
+fastapi>=0.115.6
+uvicorn[standard]>=0.34.0
+pydantic>=2.10.3
+pydantic-settings>=2.6.1
 
 # HTTP Client
-httpx==0.28.1
+httpx>=0.28.1
 
 # Environment Variables
-python-dotenv==1.0.1
+python-dotenv>=1.0.1
 
 # Gemini SDK
-google-generativeai==0.8.3
+google-generativeai>=0.8.3
 
 # Utilities
-python-multipart==0.0.18
+python-multipart>=0.0.18
 
 # PowerPoint Generation
-python-pptx==0.6.23
+python-pptx>=1.0.0
 
-# Chart Generation
-matplotlib==3.8.0
-numpy==1.26.0
+# Chart Generation (Python 3.13 compatible)
+matplotlib>=3.9.0
+numpy>=2.0.0
 
 # Word Document Generation
-python-docx==1.1.2
+python-docx>=1.1.2
 
 # Text-to-Speech
-elevenlabs==1.50.5
+elevenlabs>=1.50.5

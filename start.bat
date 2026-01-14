@@ -24,13 +24,39 @@ set "FRONTEND_DIR=%SCRIPT_DIR%frontend"
 where python >nul 2>nul
 if %errorlevel% neq 0 (
     echo [FEHLER] Python ist nicht installiert!
-    echo Bitte installiere Python von https://www.python.org/downloads/
+    echo Bitte installiere Python 3.13 von https://www.python.org/downloads/
     echo.
     pause
     exit /b 1
 )
 
-echo [OK] Python gefunden
+:: Python-Version prüfen (mindestens 3.13)
+for /f "tokens=2" %%i in ('python --version 2^>^&1') do set PYTHON_VERSION=%%i
+for /f "tokens=1,2 delims=." %%a in ("%PYTHON_VERSION%") do (
+    set PYTHON_MAJOR=%%a
+    set PYTHON_MINOR=%%b
+)
+
+if %PYTHON_MAJOR% LSS 3 (
+    echo [FEHLER] Python 3.13 oder hoeher wird benoetigt!
+    echo Installierte Version: %PYTHON_VERSION%
+    echo Bitte installiere Python 3.13 von https://www.python.org/downloads/
+    echo.
+    pause
+    exit /b 1
+)
+if %PYTHON_MAJOR% EQU 3 (
+    if %PYTHON_MINOR% LSS 13 (
+        echo [FEHLER] Python 3.13 oder hoeher wird benoetigt!
+        echo Installierte Version: %PYTHON_VERSION%
+        echo Bitte installiere Python 3.13 von https://www.python.org/downloads/
+        echo.
+        pause
+        exit /b 1
+    )
+)
+
+echo [OK] Python %PYTHON_VERSION% gefunden
 
 :: Ins Backend-Verzeichnis wechseln
 cd /d "%BACKEND_DIR%"

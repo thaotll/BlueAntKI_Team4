@@ -26,13 +26,27 @@ echo ""
 # Prüfen ob Python installiert ist
 if ! command -v python3 &> /dev/null; then
     echo -e "${RED}❌ Fehler: Python3 ist nicht installiert!${NC}"
-    echo "Bitte installiere Python3 von https://www.python.org/downloads/"
+    echo "Bitte installiere Python 3.13 von https://www.python.org/downloads/"
     echo ""
     read -p "Drücke Enter zum Beenden..."
     exit 1
 fi
 
-echo -e "${GREEN}✓ Python3 gefunden${NC}"
+# Python-Version prüfen (mindestens 3.13)
+PYTHON_VERSION=$(python3 --version 2>&1 | awk '{print $2}')
+PYTHON_MAJOR=$(echo "$PYTHON_VERSION" | cut -d. -f1)
+PYTHON_MINOR=$(echo "$PYTHON_VERSION" | cut -d. -f2)
+
+if [ "$PYTHON_MAJOR" -lt 3 ] || { [ "$PYTHON_MAJOR" -eq 3 ] && [ "$PYTHON_MINOR" -lt 13 ]; }; then
+    echo -e "${RED}❌ Fehler: Python 3.13 oder höher wird benötigt!${NC}"
+    echo "Installierte Version: $PYTHON_VERSION"
+    echo "Bitte installiere Python 3.13 von https://www.python.org/downloads/"
+    echo ""
+    read -p "Drücke Enter zum Beenden..."
+    exit 1
+fi
+
+echo -e "${GREEN}✓ Python $PYTHON_VERSION gefunden${NC}"
 
 # Ins Backend-Verzeichnis wechseln
 cd "$BACKEND_DIR" || {
