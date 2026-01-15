@@ -1,8 +1,0 @@
-Collecting eval_type_backport
-  Downloading eval_type_backport-0.3.1-py3-none-any.whl.metadata (2.4 kB)
-Downloading eval_type_backport-0.3.1-py3-none-any.whl (6.1 kB)
-Installing collected packages: eval_type_backport
-Successfully installed eval_type_backport-0.3.1
-
-[notice] A new release of pip is available: 25.1.1 -> 25.3
-[notice] To update, run: pip install --upgrade pip
