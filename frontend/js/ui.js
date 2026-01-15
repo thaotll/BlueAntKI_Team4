@@ -97,21 +97,32 @@ async function speakText(text, buttonId) {
  */
 function fallbackBrowserTTS(text, buttonId) {
     if (!window.speechSynthesis) return;
-    
+
+    // Set current button ID so stopSpeech() can reset it
+    currentButtonId = buttonId;
+
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'de-DE';
     utterance.rate = 0.9;
-    
+
     utterance.onstart = () => {
         isSpeaking = true;
+        currentButtonId = buttonId;
         updateSpeakButton(buttonId, true, false);
     };
-    
+
     utterance.onend = () => {
         isSpeaking = false;
+        currentButtonId = null;
         updateSpeakButton(buttonId, false, false);
     };
-    
+
+    utterance.onerror = () => {
+        isSpeaking = false;
+        currentButtonId = null;
+        updateSpeakButton(buttonId, false, false);
+    };
+
     window.speechSynthesis.speak(utterance);
 }
 
@@ -159,7 +170,14 @@ function updateSpeakButton(buttonId, speaking, loading = false) {
  * Stop all speech
  */
 export function stopSpeech() {
+    // Save button ID before resetting state
+    const buttonToReset = currentButtonId;
+
     if (currentAudio) {
+        // Remove event handlers FIRST to prevent interference
+        currentAudio.onplay = null;
+        currentAudio.onended = null;
+        currentAudio.onerror = null;
         currentAudio.pause();
         currentAudio.currentTime = 0;
         currentAudio = null;
@@ -167,11 +185,15 @@ export function stopSpeech() {
     if (window.speechSynthesis) {
         window.speechSynthesis.cancel();
     }
-    if (currentButtonId) {
-        updateSpeakButton(currentButtonId, false, false);
-    }
+
+    // Reset state
     isSpeaking = false;
     currentButtonId = null;
+
+    // Reset button appearance AFTER clearing state
+    if (buttonToReset) {
+        updateSpeakButton(buttonToReset, false, false);
+    }
 }
 
 /**
