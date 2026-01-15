@@ -375,6 +375,8 @@ export function renderAnalysisResults(analysis, container, onDownloadReport, onD
 function renderProjectDetailCard(project, index) {
     const statusClass = project.status_color || 'gray';
     const isCritical = project.is_critical;
+    const rawProjectName = project.project_name || '';
+    const sanitizedProjectName = sanitizeProjectName(rawProjectName);
     
     // Build project info line (like Word: "Verantwortlich: X | Fortschritt: Y% | Meilensteine: Z")
     const infoParts = [];
@@ -398,7 +400,7 @@ function renderProjectDetailCard(project, index) {
         <div class="card project-detail-card ${isCritical ? 'project-critical' : ''}" data-id="${project.project_id}">
             <div class="project-detail-header">
                 <div class="project-title-row">
-                    <h4 class="project-name ${isCritical ? 'critical-name' : ''}">${escapeHtml(project.project_name)}${isCritical ? ' [KRITISCH]' : ''}</h4>
+                    <h4 class="project-name ${isCritical ? 'critical-name' : ''}">${escapeHtml(sanitizedProjectName)}${isCritical ? ' - Kritisch' : ''}</h4>
                     <div class="project-actions">
                         ${hasTextToSpeak ? `
                             <button id="speak-project-${index}" class="btn btn-speak btn-speak-sm" title="Analyse vorlesen">
@@ -503,6 +505,8 @@ function renderRadarChart(project, size = 200) {
     // Generate labels with values
     let labels = '';
     const labelRadius = maxRadius + 25;
+    // Calculate padding needed for labels (accounting for text width)
+    const padding = 50; // Increased padding to prevent label cutoff
     for (let i = 0; i < numAxes; i++) {
         const angle = startAngle + i * angleStep;
         const x = centerX + labelRadius * Math.cos(angle);
@@ -537,9 +541,15 @@ function renderRadarChart(project, size = 200) {
         `<span class="radar-legend-item"><strong>${s.label}</strong> = ${s.fullLabel}</span>`
     ).join('');
     
+    // Calculate SVG dimensions with proper padding
+    const svgWidth = size + (padding * 2);
+    const svgHeight = size + (padding * 2);
+    const viewBoxX = -padding;
+    const viewBoxY = -padding;
+    
     return `
         <div class="radar-chart-container">
-            <svg width="${size + 60}" height="${size + 40}" viewBox="-30 -10 ${size + 60} ${size + 40}" class="radar-chart">
+            <svg width="${svgWidth}" height="${svgHeight}" viewBox="${viewBoxX} ${viewBoxY} ${svgWidth} ${svgHeight}" class="radar-chart">
                 ${gridCircles}
                 ${axisLines}
                 <polygon points="${dataPoints}" fill="rgba(1, 107, 213, 0.2)" stroke="#016bd5" stroke-width="2"/>
@@ -620,4 +630,17 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+const PROJECT_NAME_TAG_PATTERN = /\s*\[(?:KRITISCH|DATEN[- ]?FEHLER|ZEITKRITISCH|RISIKO|ABGESCHLOSSEN)\]\s*/gi;
+
+/**
+ * Remove legacy bracket tags from project names for display.
+ */
+function sanitizeProjectName(name) {
+    if (!name) return '';
+    return name
+        .replace(PROJECT_NAME_TAG_PATTERN, ' ')
+        .replace(/\s{2,}/g, ' ')
+        .trim();
 }

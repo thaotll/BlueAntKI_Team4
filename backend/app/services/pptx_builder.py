@@ -5,6 +5,7 @@ Now supports AI-generated presentation structures with chart visualizations.
 """
 
 import logging
+import re
 from datetime import datetime
 from typing import List, Optional
 
@@ -298,11 +299,11 @@ class PptxBuilder:
             x_pos = start_x + i * (card_width + 0.3)
             shapes.extend(self._create_metric_card(x_pos, y_pos, card_width, card_height, value, label, color))
 
-        # Executive summary text (truncated)
+        # Executive summary text (preserve full content with smart wrapping)
         if self.analysis.executive_summary:
-            summary_text = self.analysis.executive_summary[:500]
-            if len(self.analysis.executive_summary) > 500:
-                summary_text += "..."
+            summary_paragraphs = self._prepare_summary_paragraphs(
+                self.analysis.executive_summary
+            )
 
             summary_style = TextStyle(
                 font_name=self.tokens.FONT_FAMILY,
@@ -311,13 +312,8 @@ class PptxBuilder:
             )
 
             summary_box = TextBoxShape(
-                position=Position(x=0.5, y=3.8, width=12.333, height=3.0),
-                paragraphs=[
-                    TextParagraph(
-                        runs=[TextRun(text=summary_text)],
-                        alignment="left",
-                    )
-                ],
+                position=Position(x=0.5, y=3.8, width=12.333, height=3.4),
+                paragraphs=summary_paragraphs,
                 default_style=summary_style,
             )
             shapes.append(summary_box)
@@ -327,6 +323,52 @@ class PptxBuilder:
             shapes=shapes,
             notes=slide_spec.speaker_notes if slide_spec else None,
         )
+
+    def _prepare_summary_paragraphs(self, text: str) -> List[TextParagraph]:
+        """Split long executive summaries into readable paragraphs."""
+        if not text:
+            return []
+
+        raw_blocks = [
+            block.strip()
+            for block in re.split(r"\n{2,}", text.strip())
+            if block.strip()
+        ]
+        if not raw_blocks:
+            raw_blocks = [text.strip()]
+
+        paragraphs: List[TextParagraph] = []
+        for block in raw_blocks:
+            for chunk in self._chunk_sentences(block):
+                paragraphs.append(
+                    TextParagraph(
+                        runs=[TextRun(text=chunk)],
+                        alignment="left",
+                        space_after_pt=6,
+                    )
+                )
+        return paragraphs
+
+    def _chunk_sentences(self, text: str, max_length: int = 350) -> List[str]:
+        """Group sentences so paragraphs stay readable without truncation."""
+        sentences = [s.strip() for s in re.split(r"(?<=[.!?])\s+", text) if s.strip()]
+        if not sentences:
+            return [text.strip()] if text.strip() else []
+
+        chunks: List[str] = []
+        current = ""
+        for sentence in sentences:
+            candidate = f"{current} {sentence}".strip() if current else sentence
+            if len(candidate) > max_length and current:
+                chunks.append(current.strip())
+                current = sentence
+            else:
+                current = candidate
+
+        if current:
+            chunks.append(current.strip())
+
+        return chunks
 
     def _build_statistics_slide(self, slide_spec: Optional[AISlideSpec] = None) -> PptxSlideModel:
         """Build statistics slide with charts."""
@@ -617,37 +659,37 @@ class PptxBuilder:
         shapes.append(self._create_slide_title(title_text))
 
         if self.analysis.risk_clusters:
-            # Display risk clusters as styled bullet points
+            # Display risk clusters as simple bullet points (5-6 max)
             y_pos = 1.8
-            for i, cluster in enumerate(self.analysis.risk_clusters[:5]):
-                # Risk indicator (simple bullet, no emoji)
+            max_clusters = 6
+            for i, cluster in enumerate(self.analysis.risk_clusters[:max_clusters]):
                 indicator_style = TextStyle(
                     font_name=self.tokens.FONT_FAMILY,
                     font_size_pt=self.tokens.BODY_SIZE + 4,
                     bold=True,
-                    color=self.tokens.YELLOW if i < 2 else self.tokens.TEXT_LIGHT,
+                    color=self.tokens.YELLOW if i == 0 else self.tokens.TEXT_LIGHT,
                 )
                 indicator_box = TextBoxShape(
-                    position=Position(x=0.5, y=y_pos, width=0.5, height=0.6),
+                    position=Position(x=0.5, y=y_pos, width=0.4, height=0.5),
                     paragraphs=[TextParagraph(runs=[TextRun(text=">")], alignment="center")],
                     default_style=indicator_style,
                 )
                 shapes.append(indicator_box)
 
-                # Risk text
                 risk_style = TextStyle(
                     font_name=self.tokens.FONT_FAMILY,
                     font_size_pt=self.tokens.BODY_SIZE,
                     color=self.tokens.TEXT_DARK,
                 )
+                
                 risk_box = TextBoxShape(
-                    position=Position(x=1.2, y=y_pos, width=11.633, height=0.6),
+                    position=Position(x=1.1, y=y_pos, width=11.733, height=0.6),
                     paragraphs=[TextParagraph(runs=[TextRun(text=cluster)], alignment="left")],
                     default_style=risk_style,
                 )
                 shapes.append(risk_box)
 
-                y_pos += 0.9
+                y_pos += 0.85
         else:
             no_clusters_style = TextStyle(
                 font_name=self.tokens.FONT_FAMILY,
@@ -734,6 +776,145 @@ class PptxBuilder:
             shapes=shapes,
             notes=slide_spec.speaker_notes if slide_spec else None,
         )
+    
+    def _get_risk_cluster_context(self, cluster_text: str) -> List[str]:
+        """Add contextual info for detailed risk cluster slides.
+        
+        Returns a list of context lines to display under the risk cluster.
+        """
+        if not cluster_text:
+            return []
+        
+        context_lines = []
+        cluster_lower = cluster_text.lower()
+        
+        # Find affected projects based on risk pattern
+        affected_projects = self._find_affected_projects(cluster_text)
+        
+        # Resource/Capacity issues
+        if "ressource" in cluster_lower or "kapaz" in cluster_lower or "engpass" in cluster_lower:
+            context_lines.append("Betroffene Projekte: Fokus auf Engpassbereiche im Portfolio (siehe Ressourcenanalyse).")
+            if affected_projects:
+                project_names = [p.project_name for p in affected_projects[:3]]
+                if len(affected_projects) > 3:
+                    context_lines.append(f"Beispiele: {', '.join(project_names)} und {len(affected_projects) - 3} weitere Projekte.")
+                else:
+                    context_lines.append(f"Betroffene Projekte: {', '.join(project_names)}.")
+                # Add statistics
+                avg_risk = sum(p.risk.value for p in affected_projects) / len(affected_projects) if affected_projects else 0
+                context_lines.append(f"Durchschnittliches Risiko betroffener Projekte: {avg_risk:.1f}/5.0")
+        
+        # Data quality issues
+        elif "daten" in cluster_lower or "datenqualität" in cluster_lower or "dq" in cluster_lower:
+            context_lines.append("Datenqualität wirkt sich auf Analyse und Prognosen aus – Data Governance Maßnahmen priorisieren.")
+            if affected_projects:
+                low_dq_projects = [p for p in affected_projects if p.data_quality.value <= 2]
+                if low_dq_projects:
+                    context_lines.append(f"{len(low_dq_projects)} Projekt(e) mit niedriger Datenqualität (DQ ≤ 2) identifiziert.")
+                if self.analysis.data_warnings:
+                    context_lines.append(f"{len(self.analysis.data_warnings)} Datenqualitätswarnungen im Portfolio vorhanden.")
+            if self.analysis.avg_data_quality < 3.0:
+                context_lines.append(f"Durchschnittliche Datenqualität im Portfolio: {self.analysis.avg_data_quality:.1f}/5.0 – Handlungsbedarf erkennbar.")
+        
+        # Timeline/Deadline issues
+        elif "timeline" in cluster_lower or "termin" in cluster_lower or "verzögerung" in cluster_lower or "deadline" in cluster_lower:
+            context_lines.append("Terminrisiken schlagen direkt auf kritische Projekte durch; frühzeitige Steering-Entscheidungen nötig.")
+            if affected_projects:
+                high_urgency = [p for p in affected_projects if p.urgency.value >= 4]
+                delayed = [p for p in affected_projects if p.milestones_delayed > 0]
+                if high_urgency:
+                    context_lines.append(f"{len(high_urgency)} betroffene Projekt(e) mit hoher Dringlichkeit (U ≥ 4).")
+                if delayed:
+                    total_delayed = sum(p.milestones_delayed for p in delayed)
+                    context_lines.append(f"{len(delayed)} Projekt(e) mit verzögerten Meilensteinen ({total_delayed} Meilensteine insgesamt).")
+        
+        # Scope/Complexity issues
+        elif "scope" in cluster_lower or "komplex" in cluster_lower or "anforderung" in cluster_lower or "business-case" in cluster_lower:
+            context_lines.append("Hohe Scope-Veränderungen erfordern klares Change-Management und abgestimmte Roadmaps.")
+            if affected_projects:
+                high_complexity = [p for p in affected_projects if p.complexity.value >= 4]
+                if high_complexity:
+                    context_lines.append(f"{len(high_complexity)} Projekt(e) mit hoher Komplexität (C ≥ 4) betroffen.")
+                avg_complexity = sum(p.complexity.value for p in affected_projects) / len(affected_projects) if affected_projects else 0
+                context_lines.append(f"Durchschnittliche Komplexität betroffener Projekte: {avg_complexity:.1f}/5.0")
+        
+        # Legacy system issues
+        elif "legacy" in cluster_lower or "alt" in cluster_lower or "incompat" in cluster_lower:
+            context_lines.append("Legacy-Systeme erfordern besondere Aufmerksamkeit bei Integration und Migration.")
+            if affected_projects:
+                project_names = [p.project_name for p in affected_projects[:3]]
+                if len(affected_projects) > 3:
+                    context_lines.append(f"Betroffene Projekte: {', '.join(project_names)} und {len(affected_projects) - 3} weitere.")
+                else:
+                    context_lines.append(f"Betroffene Projekte: {', '.join(project_names)}.")
+        
+        # Budget issues
+        elif "budget" in cluster_lower or "kosten" in cluster_lower or "finanz" in cluster_lower:
+            context_lines.append("Budgetüberschreitungen erfordern transparente Kostenkontrolle und Priorisierung.")
+            if affected_projects:
+                high_risk = [p for p in affected_projects if p.risk.value >= 4]
+                if high_risk:
+                    context_lines.append(f"{len(high_risk)} betroffene Projekt(e) mit hohem Risiko (R ≥ 4).")
+        
+        # Generic fallback - add affected projects if found
+        else:
+            if affected_projects:
+                project_names = [p.project_name for p in affected_projects[:3]]
+                if len(affected_projects) > 3:
+                    context_lines.append(f"Betroffene Projekte: {', '.join(project_names)} und {len(affected_projects) - 3} weitere.")
+                else:
+                    context_lines.append(f"Betroffene Projekte: {', '.join(project_names)}.")
+                avg_risk = sum(p.risk.value for p in affected_projects) / len(affected_projects) if affected_projects else 0
+                if avg_risk >= 3.5:
+                    context_lines.append(f"Durchschnittliches Risiko: {avg_risk:.1f}/5.0 – erhöhte Aufmerksamkeit erforderlich.")
+        
+        return context_lines
+    
+    def _find_affected_projects(self, cluster_text: str) -> List[ProjectScore]:
+        """Find projects that are likely affected by a given risk cluster.
+        
+        Uses heuristics based on project scores and cluster keywords.
+        """
+        affected = []
+        cluster_lower = cluster_text.lower()
+        
+        for project in self.analysis.project_scores:
+            is_affected = False
+            
+            # Resource/Capacity issues
+            if "ressource" in cluster_lower or "kapaz" in cluster_lower or "engpass" in cluster_lower:
+                # Projects with high complexity and risk might indicate resource issues
+                if project.complexity.value >= 4 and project.risk.value >= 3:
+                    is_affected = True
+            
+            # Data quality issues
+            elif "daten" in cluster_lower or "datenqualität" in cluster_lower or "dq" in cluster_lower:
+                if project.data_quality.value <= 2:
+                    is_affected = True
+            
+            # Timeline issues
+            elif "timeline" in cluster_lower or "termin" in cluster_lower or "verzögerung" in cluster_lower:
+                if project.urgency.value >= 4 or project.milestones_delayed > 0:
+                    is_affected = True
+            
+            # Scope/Complexity issues
+            elif "scope" in cluster_lower or "komplex" in cluster_lower or "anforderung" in cluster_lower:
+                if project.complexity.value >= 4:
+                    is_affected = True
+            
+            # Budget issues
+            elif "budget" in cluster_lower or "kosten" in cluster_lower:
+                if project.risk.value >= 4:
+                    is_affected = True
+            
+            # Critical projects are often affected by various risk patterns
+            if project.is_critical and project.risk.value >= 3:
+                is_affected = True
+            
+            if is_affected:
+                affected.append(project)
+        
+        return affected
 
     def _build_status_distribution_slide(self, slide_spec: Optional[AISlideSpec] = None) -> PptxSlideModel:
         """Build status distribution slide with pie chart."""
@@ -797,18 +978,22 @@ class PptxBuilder:
         project_label = self._get_project_display_label(project)
         title_text = project.project_name
         
-        # Use appropriate label instead of generic [KRITISCH]
+        # Attach descriptive text instead of square-bracket tags
+        label_suffix = None
         if project_label == "Kritisch":
-            title_text += " [KRITISCH]"
+            label_suffix = "Kritisch"
         elif project_label == "Review / Lessons Learned":
-            title_text += " [ABGESCHLOSSEN]"
+            label_suffix = "Review / Lessons Learned"
         elif project_label == "Daten-Fehler":
-            title_text += " [DATEN-FEHLER]"
+            label_suffix = "Datenfehler festgestellt"
         elif project_label == "Risikobehaftet":
-            title_text += " [RISIKO]"
+            label_suffix = "Risikobehaftet"
         elif project_label == "Zeitkritisch":
-            title_text += " [ZEITKRITISCH]"
-        
+            label_suffix = "Zeitkritisch"
+
+        if label_suffix:
+            title_text = f"{title_text} - {label_suffix}"
+
         shapes.append(self._create_slide_title(title_text[:60]))
         
         # Data Warning Banner (if data quality issues exist)
@@ -843,7 +1028,7 @@ class PptxBuilder:
             insights = self._extract_detailed_insights(project)
             max_insights = 5
             box_height = 1.0
-            y_spacing = 1.05
+            y_spacing = 0.85
             font_size = self.tokens.BODY_SIZE - 3
         else:
             insights = self._extract_project_insights(project)
@@ -911,6 +1096,13 @@ class PptxBuilder:
         # Decision Points section (only for active, non-completed projects)
         decision_points = self._extract_decision_points(project)
         if decision_points and not is_completed:
+            decision_points = decision_points[:3]
+            decision_block_height = 0.25 + len(decision_points) * 0.3
+            min_decision_y = insights_title_y + 0.15
+            max_decision_y = self.tokens.SLIDE_HEIGHT - self.tokens.MARGIN - decision_block_height
+            adjusted_start = min(y_pos + 0.02, max_decision_y)
+            decision_start_y = max(min_decision_y, adjusted_start)
+
             # Add "Benötigte Entscheidungen" header
             decision_header_style = TextStyle(
                 font_name=self.tokens.FONT_FAMILY,
@@ -919,12 +1111,12 @@ class PptxBuilder:
                 color=self.tokens.RED,
             )
             decision_header = TextBoxShape(
-                position=Position(x=6.0, y=y_pos + 0.2, width=6.833, height=0.4),
+                position=Position(x=6.0, y=decision_start_y, width=6.833, height=0.25),
                 paragraphs=[TextParagraph(runs=[TextRun(text="Benötigte Entscheidungen:")], alignment="left")],
                 default_style=decision_header_style,
             )
             shapes.append(decision_header)
-            y_pos += 0.5
+            bullet_y = decision_start_y + 0.3
             
             # Add decision point bullets
             decision_style = TextStyle(
@@ -933,21 +1125,21 @@ class PptxBuilder:
                 color=self.tokens.RED,
             )
             
-            for decision in decision_points[:3]:  # Max 3 decision points
+            for decision in decision_points:
                 decision_bullet = TextBoxShape(
-                    position=Position(x=6.0, y=y_pos, width=0.3, height=0.35),
+                    position=Position(x=6.0, y=bullet_y, width=0.3, height=0.2),
                     paragraphs=[TextParagraph(runs=[TextRun(text="→")], alignment="left")],
                     default_style=decision_style,
                 )
                 shapes.append(decision_bullet)
                 
                 decision_box = TextBoxShape(
-                    position=Position(x=6.4, y=y_pos, width=6.433, height=0.6),
+                    position=Position(x=6.4, y=bullet_y, width=6.433, height=0.35),
                     paragraphs=[TextParagraph(runs=[TextRun(text=decision)], alignment="left")],
                     default_style=decision_style,
                 )
                 shapes.append(decision_box)
-                y_pos += 0.55
+                bullet_y += 0.3
 
         # Add score summary below the radar chart (left side)
         score_summary = f"Scores: U={project.urgency.value} | I={project.importance.value} | C={project.complexity.value} | R={project.risk.value} | DQ={project.data_quality.value}"
@@ -986,7 +1178,7 @@ class PptxBuilder:
         if has_mismatch:
             status_info = project.status_label or "Abgeschlossen"
             contradictions = self._get_data_mismatch_details(project)
-            insights.append(f"Daten-Widerspruch: Status '{status_info}' widerspricht Metriken")
+            insights.append(f"Daten-Widerspruch: Status \"{status_info}\" widerspricht Metriken")
             if contradictions:
                 insights.append(f"Probleme: {', '.join(contradictions[:2])}")
             insights.append("Manueller Status-Check erforderlich")
@@ -1082,10 +1274,10 @@ class PptxBuilder:
             contradiction_list = ", ".join(contradictions) if contradictions else "Inkonsistente Metriken"
             
             insights.append(
-                f"WIDERSPRÜCHLICHE DATENLAGE: Der Projektstatus in BlueAnt ist '{status_info}', "
+                f"WIDERSPRÜCHLICHE DATENLAGE: Der Projektstatus in BlueAnt ist \"{status_info}\", "
                 f"aber die Metriken widersprechen dem massiv ({contradiction_list}). "
                 f"Wahrscheinlicher Status: GESTOPPT oder KRITISCH. "
-                f"Dieses Projekt darf NICHT als 'Erfolg' gewertet werden!"
+                f"Dieses Projekt darf NICHT als \"Erfolg\" gewertet werden!"
             )
             insights.append(
                 f"NOTWENDIGE AKTION: Manueller Status-Check durch Projektleiter anfordern. "
@@ -1096,7 +1288,7 @@ class PptxBuilder:
         elif is_completed:
             # Nur bei KONSISTENTEN abgeschlossenen Projekten das Erfolgs-Template verwenden
             insights.append(
-                f"PROJEKTSTATUS: ABGESCHLOSSEN – Das Projekt wurde erfolgreich beendet (Status: '{status_info}'). "
+                f"PROJEKTSTATUS: ABGESCHLOSSEN – Das Projekt wurde erfolgreich beendet (Status: \"{status_info}\"). "
                 f"Alle definierten Ziele wurden erreicht und das Projekt ist formal abgeschlossen. "
                 f"Die nachfolgenden Bewertungen dienen der retrospektiven Analyse und dem Lessons-Learned-Prozess. "
                 f"Eine Projektabschluss-Dokumentation sollte erstellt werden."
@@ -1104,35 +1296,35 @@ class PptxBuilder:
         elif project.progress_percent >= 90:
             insights.append(
                 f"PROJEKTSTATUS: ABSCHLUSSPHASE – Mit {project.progress_percent:.0f}% Fortschritt befindet sich das "
-                f"Projekt in der finalen Phase (Status: '{status_info}'). Der Fokus sollte auf Qualitätssicherung, "
+                f"Projekt in der finalen Phase (Status: \"{status_info}\"). Der Fokus sollte auf Qualitätssicherung, "
                 f"Dokumentation und formaler Abnahme liegen. Change-Requests sollten kritisch geprüft werden, "
                 f"um den Projektabschluss nicht zu gefährden."
             )
         elif project.urgency.value >= 4 and project.risk.value >= 4:
             insights.append(
                 f"PROJEKTSTATUS: KRITISCH – Das Projekt weist sowohl hohe Dringlichkeit ({project.urgency.value}/5) "
-                f"als auch erhebliches Risiko ({project.risk.value}/5) auf (Status: '{status_info}'). "
+                f"als auch erhebliches Risiko ({project.risk.value}/5) auf (Status: \"{status_info}\"). "
                 f"Diese Kombination erfordert unmittelbare Management-Intervention, tägliche Statusberichte "
                 f"und zusätzliche Ressourcen. Ein dedizierter Eskalationspfad sollte etabliert werden."
             )
         elif project.urgency.value >= 4:
             insights.append(
                 f"PROJEKTSTATUS: ZEITKRITISCH – Mit Dringlichkeitsstufe {project.urgency.value}/5 steht das Projekt "
-                f"unter erheblichem Zeitdruck (Status: '{status_info}'). Termingerechte Fertigstellung erfordert "
+                f"unter erheblichem Zeitdruck (Status: \"{status_info}\"). Termingerechte Fertigstellung erfordert "
                 f"priorisierte Ressourcen, parallele Arbeitspakete und beschleunigte Entscheidungsprozesse. "
                 f"Wöchentliche Fortschrittsreviews sind essentiell."
             )
         elif project.risk.value >= 4:
             insights.append(
                 f"PROJEKTSTATUS: RISIKOBEHAFTET – Die Risikobewertung von {project.risk.value}/5 signalisiert "
-                f"potenzielle Gefährdungen (Status: '{status_info}'). Aktives Risikomanagement, definierte "
+                f"potenzielle Gefährdungen (Status: \"{status_info}\"). Aktives Risikomanagement, definierte "
                 f"Mitigationsmaßnahmen und regelmäßige Risk-Reviews sind erforderlich. "
                 f"Contingency-Pläne sollten vorbereitet werden."
             )
         else:
             insights.append(
                 f"PROJEKTSTATUS: STABIL – Mit Dringlichkeit {project.urgency.value}/5 und Risiko {project.risk.value}/5 "
-                f"befindet sich das Projekt in kontrolliertem Zustand (Status: '{status_info}'). "
+                f"befindet sich das Projekt in kontrolliertem Zustand (Status: \"{status_info}\"). "
                 f"Standardmäßige Projektmanagement-Praktiken sind ausreichend. "
                 f"Regelmäßige Statusmeetings und proaktive Stakeholder-Kommunikation werden empfohlen."
             )

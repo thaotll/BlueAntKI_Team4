@@ -63,6 +63,17 @@ class SanityValidator:
         r"tägliche?\s+status",
     ]
     
+    # Tags appended to project names that should be removed (e.g., "[KRITISCH]")
+    PROJECT_NAME_TAG_PATTERN = re.compile(
+        r"\s*\[(?:KRITISCH|DATEN[- ]?FEHLER|ABGESCHLOSSEN|RISIKO|ZEITKRITISCH)\]\s*",
+        re.IGNORECASE,
+    )
+    
+    # Matches quoted segments like 'Projektname' to replace with double quotes
+    SINGLE_QUOTE_WRAP_PATTERN = re.compile(
+        r"(^|[\s(\[\{\"])'([^'\n]{1,120}?)'(?=[\s)\]\}\.,;!?]|$)"
+    )
+    
     def __init__(self):
         """Initialize the validator with compiled regex patterns."""
         self._critical_patterns = [
@@ -81,6 +92,10 @@ class SanityValidator:
             ValidationResult containing the corrected score and any warnings
         """
         result = ValidationResult(score=score)
+
+        # Clean up project names before further processing
+        self._sanitize_project_name(result)
+        self._normalize_text_fields(result)
 
         # Check if project is completed first
         is_completed = self._is_completed(score)
@@ -137,6 +152,49 @@ class SanityValidator:
                 all_warnings.append(f"[{score.project_name}] {warning}")
         
         return validated_scores, all_warnings
+
+    def _sanitize_project_name(self, result: ValidationResult) -> None:
+        """Remove tag-like markers (e.g., [KRITISCH]) from project names."""
+        name = result.score.project_name or ""
+        cleaned = self.PROJECT_NAME_TAG_PATTERN.sub(" ", name).strip()
+        cleaned = re.sub(r"\s{2,}", " ", cleaned)
+
+        if cleaned != name:
+            result.score.project_name = cleaned
+            result.corrections_applied.append("Project name sanitized")
+    
+    def _normalize_text_fields(self, result: ValidationResult) -> None:
+        """Ensure summaries and analyses use double quotes instead of single quotes."""
+        text_fields = ("summary", "detailed_analysis")
+        for field_name in text_fields:
+            value = getattr(result.score, field_name, None)
+            if not value:
+                continue
+            normalized = self._normalize_quotes(value)
+            if normalized != value:
+                setattr(result.score, field_name, normalized)
+                result.corrections_applied.append(f"{field_name} quotes normalized")
+    
+    def _normalize_quotes(self, text: str) -> str:
+        """Replace single-quote wrappers with double quotes and normalize curly quotes."""
+        if not text:
+            return text
+        
+        def replacer(match: re.Match) -> str:
+            prefix = match.group(1)
+            content = match.group(2)
+            return f"{prefix}\"{content}\""
+
+        normalized = self.SINGLE_QUOTE_WRAP_PATTERN.sub(replacer, text)
+        normalized = (
+            normalized
+            .replace("‚", '"')
+            .replace("‘", '"')
+            .replace("’", '"')
+            .replace("“", '"')
+            .replace("”", '"')
+        )
+        return normalized
     
     def _is_completed(self, score: ProjectScore) -> bool:
         """
@@ -248,7 +306,7 @@ class SanityValidator:
             (r"dringend(?:er|es?)?\s+handlungsbedarf",
              "Lessons Learned"),
             (r"\[?KRITISCH\]?",
-             "[ABGESCHLOSSEN]"),
+             "abgeschlossen"),
         ]
         
         for pattern, replacement in replacements:
@@ -463,4 +521,3 @@ class SanityValidator:
 def get_sanity_validator() -> SanityValidator:
     """Get a SanityValidator instance."""
     return SanityValidator()
-

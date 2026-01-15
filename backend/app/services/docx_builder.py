@@ -196,7 +196,7 @@ class DocxBuilder:
             # Project heading with critical indicator
             project_title = project.project_name
             if project.is_critical:
-                project_title = f"{project.project_name} [{self._get_label('critical_marker')}]"
+                project_title = f"{project.project_name} - {self._get_label('critical_label')}"
             
             section.paragraphs.append(
                 DocxParagraph.simple(
@@ -356,7 +356,6 @@ class DocxBuilder:
                 "delayed": "verzögert",
                 "critical_projects_intro": "Die folgenden {count} Projekte wurden als kritisch eingestuft und erfordern besondere Aufmerksamkeit:",
                 "critical_label": "Kritisch",
-                "critical_marker": "KRITISCH",
                 "yes": "Ja",
                 "no": "Nein",
             },
@@ -382,10 +381,8 @@ class DocxBuilder:
                 "delayed": "delayed",
                 "critical_projects_intro": "The following {count} projects have been identified as critical and require special attention:",
                 "critical_label": "Critical",
-                "critical_marker": "CRITICAL",
                 "yes": "Yes",
                 "no": "No",
             },
         }
         return labels.get(self.language, labels["de"]).get(key, key)
-

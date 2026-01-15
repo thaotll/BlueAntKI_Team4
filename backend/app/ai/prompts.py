@@ -117,7 +117,7 @@ Antworte NUR mit einem validen JSON-Objekt im folgenden Format (keine Markdown-C
       }},
       "is_critical": true/false,
       "summary": "Kurze Gesamteinschätzung (2-3 Sätze)",
-      "detailed_analysis": "Ausführliche narrative Analyse des Projekts: Was ist die aktuelle Situation? Welche Probleme gibt es und warum? Was sind die Konsequenzen? Was sollte getan werden? (5-8 Sätze, fließender Text)"
+      "detailed_analysis": "Ausführliche narrative Analyse des Projekts: Was ist die aktuelle Situation? Welche Probleme gibt es und warum? Was sind die Konsequenzen? Was sollte getan werden? (5-8 Sätze, fließender Text). WICHTIG: Variiere die Satzanfänge aktiv - vermeide Wiederholungen wie 'Das Projekt...', 'Es ist...', 'Es gibt...'. Nutze verschiedene Satzstrukturen und Einleitungen."
     }}
   ]
 }}
@@ -126,11 +126,15 @@ Wichtig:
 - Gib für JEDES Projekt eine vollständige, tiefgehende Bewertung ab
 - Nutze die volle Skala 1-5, nicht nur Extremwerte
 - Die detailed_analysis soll als Fließtext formuliert sein, nicht als Aufzählung
+- Variiere die Satzanfänge aktiv - vermeide repetitive Strukturen wie "Das Projekt...", "Es ist...", "Es gibt..." am Satzanfang
+- Nutze verschiedene Einleitungen: Adverbiale, Partizipialkonstruktionen, Relativsätze, Fragesätze, direkte Aussagen
 - Begründungen sollen spezifisch auf die Projektdaten eingehen und konkrete Zahlen/Fakten nennen
 - Identifiziere Widersprüche in den Daten und benenne diese explizit
 - KRITISCH: Antworte NUR mit validem JSON! Keine Markdown-Codeblöcke, kein Text davor oder danach
 - Achte auf korrekte JSON-Syntax: Kommas zwischen Array-Elementen, keine trailing commas, Anführungszeichen um Strings
 - Escape Sonderzeichen in Strings korrekt (z.B. \\" für Anführungszeichen innerhalb von Strings)
+- Verwende beim Zitieren von Projektnamen oder Begriffen sparsam doppelte Anführungszeichen ("…") und setze keine einfachen Hochkommas
+- Vergleiche die Projekte explizit miteinander: Verwende NIE identische U/I/C/R/DQ-Kombinationen, außer alle zugrunde liegenden Kennzahlen (Fortschritt, Meilensteine, Aufwand, Risiken, Status) stimmen vollständig überein. Begründe Unterschiede im Text.
 """
 
 
@@ -145,6 +149,11 @@ PORTFOLIO_ANALYSIS_PROMPT_TEMPLATE = """Basierend auf den Einzelbewertungen der 
 ## Aufgabe
 
 Erstelle eine ausführliche, Management-taugliche Portfolioanalyse. Der Report soll als zusammenhängendes Dokument lesbar sein, nicht nur als Aufzählung von Punkten.
+
+**Stilistische Anforderungen:**
+- Variiere die Satzanfänge in der executive_summary aktiv - vermeide repetitive Strukturen
+- Nutze verschiedene Einleitungen: Adverbiale, Partizipialkonstruktionen, Relativsätze, direkte Aussagen
+- Vermeide Wiederholungen wie "Das Portfolio...", "Es gibt...", "Es ist..." am Satzanfang
 
 ### Erforderliche Inhalte:
 
@@ -172,7 +181,7 @@ Erstelle eine ausführliche, Management-taugliche Portfolioanalyse. Der Report s
 Antworte NUR mit einem validen JSON-Objekt im folgenden Format:
 
 {{
-  "executive_summary": "Ausführliche Management-Zusammenfassung des Portfolios als Fließtext (6-10 Sätze). Beschreibe den Gesamtzustand, identifizierte Probleme, Trends und den dringendsten Handlungsbedarf.",
+  "executive_summary": "Ausführliche Management-Zusammenfassung des Portfolios als Fließtext (6-10 Sätze). Beschreibe den Gesamtzustand, identifizierte Probleme, Trends und den dringendsten Handlungsbedarf. WICHTIG: Variiere die Satzanfänge aktiv - vermeide Wiederholungen wie 'Das Portfolio...', 'Es gibt...', 'Es ist...'. Nutze verschiedene Satzstrukturen und Einleitungen.",
   "critical_projects": ["projekt_id_1", "projekt_id_2"],
   "priority_ranking": ["projekt_id_höchste_prio", "projekt_id_2", "..."],
   "risk_clusters": [
@@ -193,6 +202,7 @@ KRITISCH:
 - Antworte NUR mit validem JSON! Keine Markdown-Codeblöcke, kein Text davor oder danach
 - Achte auf korrekte JSON-Syntax: Kommas zwischen Array-Elementen, keine trailing commas
 - Escape Sonderzeichen in Strings korrekt (z.B. \\" für Anführungszeichen)
+- Wenn du Begriffe oder Projektnamen zitierst, nutze nur doppelte Anführungszeichen ("…") und setze sie sparsam ein
 """
 
 
@@ -269,9 +279,10 @@ def format_scores_for_portfolio_prompt(scores: List[dict]) -> str:
     """Format project scores for the portfolio analysis prompt."""
     lines = []
     for score in scores:
+        critical_suffix = " - Kritisch" if score.get("is_critical") else ""
         lines.append(
             f"### {score.get('project_name', 'N/A')} (ID: {score.get('project_id', 'N/A')})"
-            f"{' [KRITISCH]' if score.get('is_critical') else ''}"
+            f"{critical_suffix}"
         )
         lines.append(
             f"Bewertung: U={score.get('urgency', {}).get('value', '?')}, "
@@ -330,6 +341,7 @@ Du kannst folgende Visualisierungen empfehlen:
 3. **Konsistenz**: Einheitliche Visualisierungsstile
 4. **Fokus**: Maximal 2-3 Visualisierungen pro Folie
 5. **Kontext**: Jede Folie sollte eine klare Botschaft haben
+6. **Saubere Zitate**: Wenn du Namen zitierst, nutze sparsam doppelte Anführungszeichen ("…"), keine einfachen Hochkommas
 """
 
 
@@ -404,6 +416,7 @@ Antworte NUR mit einem validen JSON-Objekt:
 - Jede Folie braucht eine klare Botschaft (key_message)
 - Visualisierungstypen müssen zu den Daten passen
 - position_hint: "full" für einzelne große Visualisierungen, "left"/"right" für nebeneinander
+- Verwende nur bei echten Zitaten doppelte Anführungszeichen ("…") und vermeide einfache Hochkommas
 """
 
 
@@ -417,7 +430,7 @@ def format_analysis_for_presentation_prompt(analysis) -> dict:
     # Format project scores summary
     project_scores_lines = []
     for score in analysis.project_scores[:10]:  # Limit to first 10 for prompt
-        critical_marker = " [KRITISCH]" if score.is_critical else ""
+        critical_marker = " - Kritisch" if score.is_critical else ""
         project_scores_lines.append(
             f"- {score.project_name}{critical_marker}: "
             f"U={score.urgency.value}, I={score.importance.value}, "

@@ -67,6 +67,12 @@ class GeminiService:
             model_name=self.model_name,
             system_instruction=SYSTEM_PROMPT,
         )
+        # Slight randomness during scoring encourages differentiated outputs
+        self.scoring_generation_config = genai.GenerationConfig(
+            temperature=0.3,
+            top_p=0.9,
+            top_k=40,
+        )
 
         logger.info(f"Gemini service initialized with model: {self.model_name}")
 
@@ -187,7 +193,7 @@ class GeminiService:
     async def score_projects(
         self,
         projects: List[NormalizedProject],
-        batch_size: int = 10,
+        batch_size: int = 6,
         max_json_retries: int = 2,
     ) -> List[ProjectScore]:
         """
@@ -222,10 +228,12 @@ class GeminiService:
                         logger.info(f"Retry attempt {json_attempt}/{max_json_retries} for JSON parsing...")
                     
                     # Use different generation config on retry
-                    generation_config = None
+                    generation_config = self.scoring_generation_config
                     if json_attempt > 0:
                         generation_config = genai.GenerationConfig(
-                            temperature=0.7 + (json_attempt * 0.15),
+                            temperature=min(0.7 + (json_attempt * 0.15), 1.2),
+                            top_p=0.95,
+                            top_k=50,
                         )
                     
                     response = self.model.generate_content(
