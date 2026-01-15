@@ -73,40 +73,43 @@ class SanityValidator:
     def validate_and_fix(self, score: ProjectScore) -> ValidationResult:
         """
         Main method: Applies all validation rules to a ProjectScore.
-        
+
         Args:
             score: The ProjectScore to validate
-            
+
         Returns:
             ValidationResult containing the corrected score and any warnings
         """
         result = ValidationResult(score=score)
-        
+
         # Check if project is completed first
         is_completed = self._is_completed(score)
-        
+
         if is_completed:
             self._apply_completed_project_rules(result)
-        
+        else:
+            # Check for stagnant projects that should be marked critical
+            self._check_stagnant_project(result)
+
         # Apply data quality checks (for all projects)
         self._apply_data_quality_checks(result)
-        
+
         # Validate milestone consistency
         self._validate_milestone_consistency(result, is_completed)
-        
+
         # Log corrections if any were made
         if result.corrections_applied:
             logger.info(
                 f"SanityValidator corrected project '{score.project_name}': "
                 f"{', '.join(result.corrections_applied)}"
             )
-        
+
         if result.warnings:
             logger.warning(
                 f"Data warnings for project '{score.project_name}': "
                 f"{', '.join(result.warnings)}"
             )
-        
+
         return result
     
     def validate_portfolio_scores(
@@ -319,7 +322,82 @@ class SanityValidator:
                 f"Projekt zu {score.progress_percent:.0f}% abgeschlossen, "
                 f"aber {score.milestones_delayed} Meilenstein(e) verzögert"
             )
-    
+
+    def _check_stagnant_project(self, result: ValidationResult) -> None:
+        """
+        Check for stagnant projects that should be marked as critical.
+
+        A stagnant project has:
+        - 0% progress AND 0 completed milestones
+        - Or very low progress with no milestone completion
+
+        This catches projects the LLM might have missed as critical.
+
+        Args:
+            result: The ValidationResult to update
+        """
+        score = result.score
+
+        # Check if project is in planning phase (should not be marked critical)
+        is_planning = False
+        if score.status_label:
+            planning_keywords = ["planung", "planning", "vorbereitung", "prephase"]
+            is_planning = any(kw in score.status_label.lower() for kw in planning_keywords)
+
+        if is_planning:
+            return
+
+        # Stagnant project: 0% progress AND 0 milestones completed
+        if score.progress_percent == 0 and score.milestones_completed == 0:
+            # Only flag if project has milestones defined or planned effort
+            if score.milestones_total > 0 or score.planned_effort_hours > 0:
+                if not score.is_critical:
+                    score.is_critical = True
+                    result.corrections_applied.append(
+                        "is_critical→True (stagnant: 0% progress, 0 milestones)"
+                    )
+
+                # Increase urgency if it's too low
+                if score.urgency.value < 4:
+                    original_urgency = score.urgency.value
+                    score.urgency = ScoreValue(
+                        value=4,
+                        reasoning=f"Projekt stagniert ohne Fortschritt - erhöhte Dringlichkeit. "
+                                  f"(Ursprünglich: {original_urgency}/5)"
+                    )
+                    result.corrections_applied.append(
+                        f"Urgency {original_urgency}→4 (stagnant project)"
+                    )
+
+                # Increase risk if it's too low
+                if score.risk.value < 4:
+                    original_risk = score.risk.value
+                    score.risk = ScoreValue(
+                        value=4,
+                        reasoning=f"Erhöhtes Risiko durch fehlenden Projektfortschritt. "
+                                  f"(Ursprünglich: {original_risk}/5)"
+                    )
+                    result.corrections_applied.append(
+                        f"Risk {original_risk}→4 (stagnant project)"
+                    )
+
+                result.warnings.append(
+                    "Projekt ohne Fortschritt: 0% abgeschlossen, keine Meilensteine erreicht"
+                )
+
+        # Project with milestones but none completed (less severe)
+        elif score.milestones_total > 0 and score.milestones_completed == 0:
+            if score.progress_percent < 20:
+                result.warnings.append(
+                    f"Keine Meilensteine erreicht bei {score.progress_percent:.0f}% Fortschritt"
+                )
+                # Mark as critical if not already
+                if not score.is_critical and score.progress_percent < 10:
+                    score.is_critical = True
+                    result.corrections_applied.append(
+                        "is_critical→True (no milestones, <10% progress)"
+                    )
+
     def has_data_mismatch(self, score: ProjectScore) -> bool:
         """
         Check if a project has contradictory data that invalidates its status.

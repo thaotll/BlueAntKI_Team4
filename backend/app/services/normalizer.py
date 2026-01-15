@@ -356,6 +356,16 @@ class DataNormalizer:
         criticality_reasons = []
         is_critical = False
 
+        # Check if project is completed or in planning phase (should not be marked critical)
+        is_completed = status_label and any(
+            kw in status_label.lower()
+            for kw in ["abgeschlossen", "completed", "fertig", "beendet", "closed"]
+        )
+        is_planning = status_label and any(
+            kw in status_label.lower()
+            for kw in ["planung", "planning", "vorbereitung", "initialisierung", "prephase"]
+        )
+
         if status_color == StatusColor.RED:
             is_critical = True
             criticality_reasons.append("Status ist rot")
@@ -368,6 +378,59 @@ class DataNormalizer:
         if delay_days > 14:
             is_critical = True
             criticality_reasons.append(f"Terminverzug: {delay_days} Tage")
+
+        # NEW: Check for stagnant projects (0% progress, should have started)
+        if not is_completed and not is_planning:
+            start_date = project.effective_start_date
+            today = date.today()
+
+            # Project should have started but has no progress
+            if start_date and start_date < today:
+                days_since_start = (today - start_date).days
+
+                # No progress at all after project start
+                if progress_percent == 0 and milestones_completed == 0:
+                    if days_since_start > 14:  # More than 2 weeks since start
+                        is_critical = True
+                        criticality_reasons.append(
+                            f"Kein Projektfortschritt seit {days_since_start} Tagen nach Startdatum"
+                        )
+                    elif days_since_start > 7:  # 1-2 weeks
+                        is_critical = True
+                        criticality_reasons.append(
+                            f"Projekt stagniert: 0% Fortschritt, {days_since_start} Tage nach Start"
+                        )
+
+                # Has milestones but none completed, and project is at least 30 days old
+                elif len(milestones) > 0 and milestones_completed == 0 and days_since_start > 30:
+                    is_critical = True
+                    criticality_reasons.append(
+                        f"Keine Meilensteine erreicht nach {days_since_start} Tagen"
+                    )
+
+                # Very low progress for older projects
+                elif progress_percent < 10 and days_since_start > 60:
+                    is_critical = True
+                    criticality_reasons.append(
+                        f"Nur {progress_percent:.0f}% Fortschritt nach {days_since_start} Tagen"
+                    )
+
+            # Project has end date approaching but no significant progress
+            end_date = project.effective_end_date
+            if end_date and end_date > today:
+                days_until_end = (end_date - today).days
+                project_duration = (end_date - start_date).days if start_date else 0
+
+                # Less than 30% time remaining but less than 50% progress
+                if project_duration > 0:
+                    time_elapsed_percent = 100 - (days_until_end / project_duration * 100)
+                    if time_elapsed_percent > 70 and progress_percent < 50:
+                        if not is_critical:  # Don't duplicate if already critical
+                            is_critical = True
+                            criticality_reasons.append(
+                                f"Zeitplan kritisch: {time_elapsed_percent:.0f}% der Zeit verbraucht, "
+                                f"nur {progress_percent:.0f}% Fortschritt"
+                            )
 
         # Resolve IDs to names via masterdata
         priority_name = self.get_priority_name(project.priority_id)

@@ -3,13 +3,7 @@
 
 ---
 
-## 🔴 PRIORITÄT 0 (KRITISCH) - Bugs die Funktionalität beeinträchtigen
 
-### 1. TTS Stop-Button Bug
-**Problem:** Der Stop-Knopf bei Vorlesen geht nicht aus  
-**Datei:** `frontend/js/ui.js`  
-**Lösung:** `stopSpeech()` Funktion prüfen, Button-State korrekt zurücksetzen  
-**Aufwand:** ~30 Min
 
 ### 2. Kritikalitäts-Erkennung fehlerhaft
 **Problem:** Projekte mit 0% Fortschritt und 0 Meilensteinen werden nicht als kritisch erkannt
