@@ -29,5 +29,6 @@ numpy>=2.0.0
 # Word Document Generation
 python-docx>=1.1.2
 
-# Text-to-Speech
+# Text-to-Speech (edge-tts is free, elevenlabs requires API key)
+edge-tts>=6.1.0
 elevenlabs>=1.50.5

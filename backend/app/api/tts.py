@@ -1,17 +1,18 @@
 """
-Text-to-Speech API endpoint using ElevenLabs.
+Text-to-Speech API endpoint using edge-tts (free) or ElevenLabs (premium).
 Provides high-quality, natural-sounding German voices.
 """
 
 import logging
 import io
+import asyncio
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from elevenlabs.client import ElevenLabs
+import edge_tts
 
 from app.config import get_settings
 
@@ -20,59 +21,55 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/tts", tags=["text-to-speech"])
 
 
-# ElevenLabs voice IDs for German
-ELEVENLABS_VOICES = {
-    "george": "JBFqnCBsd6RMkjVDRZzb",     # George - warm, natural male
-    "alice": "Xb7hH8MSUJpSbSDYk0k2",       # Alice - friendly female
-    "aria": "9BWtsMINqrJLrRacOk9x",        # Aria - expressive female
-    "roger": "CwhRBWXzGAHq8TQ4Fs17",       # Roger - confident male
-    "sarah": "EXAVITQu4vr4xnSDxMaL",       # Sarah - soft female
+# Edge-TTS German voices (free, high quality)
+EDGE_TTS_VOICES = {
+    "katja": "de-DE-KatjaNeural",        # Female - friendly, clear
+    "conrad": "de-DE-ConradNeural",      # Male - professional
+    "amala": "de-DE-AmalaNeural",        # Female - warm
+    "killian": "de-DE-KillianNeural",    # Male - calm
 }
 
-DEFAULT_VOICE_ID = ELEVENLABS_VOICES["alice"]  # Friendly female voice
+DEFAULT_VOICE = EDGE_TTS_VOICES["katja"]
 
 
 class TTSRequest(BaseModel):
     """Request model for text-to-speech."""
     text: str = Field(..., min_length=1, max_length=5000, description="Text to convert to speech")
-    voice_id: Optional[str] = Field(default=None, description="ElevenLabs Voice ID")
-
-
-def get_elevenlabs_client() -> ElevenLabs:
-    """Get ElevenLabs client with API key from settings."""
-    settings = get_settings()
-    if not settings.elevenlabs_api_key:
-        raise HTTPException(status_code=500, detail="ElevenLabs API key not configured")
-    return ElevenLabs(api_key=settings.elevenlabs_api_key)
+    voice: Optional[str] = Field(default=None, description="Voice name (e.g., 'de-DE-KatjaNeural')")
+    rate: Optional[str] = Field(default="+0%", description="Speech rate (e.g., '-10%', '+20%')")
 
 
 @router.post("/speak")
 async def text_to_speech(request: TTSRequest):
     """
-    Convert text to speech using ElevenLabs.
+    Convert text to speech using edge-tts (free Microsoft Azure voices).
     Returns audio as MP3 stream.
     """
     try:
-        client = get_elevenlabs_client()
-        voice_id = request.voice_id or DEFAULT_VOICE_ID
-        
-        logger.info(f"ElevenLabs TTS request: {len(request.text)} chars, voice={voice_id}")
-        
-        # Generate speech with ElevenLabs
-        audio_generator = client.text_to_speech.convert(
+        # Use provided voice or default
+        voice = request.voice or DEFAULT_VOICE
+        rate = request.rate or "+0%"
+
+        logger.info(f"Edge-TTS request: {len(request.text)} chars, voice={voice}, rate={rate}")
+
+        # Create edge-tts communicate object
+        communicate = edge_tts.Communicate(
             text=request.text,
-            voice_id=voice_id,
-            model_id="eleven_multilingual_v2",  # Best for German
-            output_format="mp3_44100_128",
+            voice=voice,
+            rate=rate
         )
-        
-        # Collect audio data from generator
+
+        # Generate speech and collect audio data
         audio_data = io.BytesIO()
-        for chunk in audio_generator:
-            audio_data.write(chunk)
-        
+        async for chunk in communicate.stream():
+            if chunk["type"] == "audio":
+                audio_data.write(chunk["data"])
+
         audio_data.seek(0)
-        
+
+        if audio_data.getbuffer().nbytes == 0:
+            raise HTTPException(status_code=500, detail="No audio data generated")
+
         return StreamingResponse(
             audio_data,
             media_type="audio/mpeg",
@@ -80,27 +77,26 @@ async def text_to_speech(request: TTSRequest):
                 "Content-Disposition": "inline; filename=speech.mp3"
             }
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"ElevenLabs TTS error: {e}")
+        logger.error(f"Edge-TTS error: {e}")
         raise HTTPException(status_code=500, detail=f"Text-to-Speech failed: {str(e)}")
 
 
 @router.get("/voices")
 async def list_voices():
     """
-    List available ElevenLabs voices.
+    List available edge-tts German voices.
     """
     return {
         "voices": [
-            {"id": ELEVENLABS_VOICES["alice"], "name": "Alice", "description": "Freundliche weibliche Stimme", "gender": "female"},
-            {"id": ELEVENLABS_VOICES["aria"], "name": "Aria", "description": "Ausdrucksstarke weibliche Stimme", "gender": "female"},
-            {"id": ELEVENLABS_VOICES["sarah"], "name": "Sarah", "description": "Sanfte weibliche Stimme", "gender": "female"},
-            {"id": ELEVENLABS_VOICES["george"], "name": "George", "description": "Warme männliche Stimme", "gender": "male"},
-            {"id": ELEVENLABS_VOICES["roger"], "name": "Roger", "description": "Selbstbewusste männliche Stimme", "gender": "male"},
+            {"id": "de-DE-KatjaNeural", "name": "Katja", "description": "Freundliche weibliche Stimme", "gender": "female"},
+            {"id": "de-DE-AmalaNeural", "name": "Amala", "description": "Warme weibliche Stimme", "gender": "female"},
+            {"id": "de-DE-ConradNeural", "name": "Conrad", "description": "Professionelle männliche Stimme", "gender": "male"},
+            {"id": "de-DE-KillianNeural", "name": "Killian", "description": "Ruhige männliche Stimme", "gender": "male"},
         ],
-        "default": DEFAULT_VOICE_ID,
-        "model": "eleven_multilingual_v2"
+        "default": DEFAULT_VOICE,
+        "provider": "edge-tts (Microsoft Azure)"
     }
