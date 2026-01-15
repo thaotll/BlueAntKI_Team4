@@ -6,7 +6,7 @@ These models map directly to the JSON structures returned by BlueAnt REST API.
 from datetime import date, datetime
 from typing import List, Optional, Union
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 # =============================================================================
@@ -99,8 +99,7 @@ class BlueAntProject(BaseModel):
         None, alias="conclusionMemo", description="Project conclusion/end notes"
     )
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
     @property
     def effective_start_date(self) -> Optional[date]:
@@ -212,8 +211,7 @@ class BlueAntPlanningEntry(BaseModel):
         None, alias="isMilestone", description="Flag indicating if this is a milestone"
     )
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
     @property
     def is_likely_milestone(self) -> bool:
@@ -257,8 +255,7 @@ class BlueAntPriority(BaseModel):
     sortIdx: Optional[int] = Field(None, description="Sort index")
     color: Optional[str] = Field(None, description="Priority color")
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
     @property
     def display_name(self) -> str:
@@ -275,8 +272,7 @@ class BlueAntProjectType(BaseModel):
     color: Optional[str] = Field(None, description="Type color")
     active: Optional[bool] = Field(None, description="Is type active")
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
     @property
     def display_name(self) -> str:
@@ -293,8 +289,7 @@ class BlueAntDepartment(BaseModel):
     parentId: Optional[int] = Field(None, description="Parent department ID")
     active: Optional[bool] = Field(None, description="Is department active")
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
     @property
     def display_name(self) -> str:
@@ -311,8 +306,7 @@ class BlueAntCustomer(BaseModel):
     active: Optional[bool] = Field(None, description="Is customer active")
     typeId: Optional[int] = Field(None, description="Customer type ID")
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
     @property
     def display_name(self) -> str:
@@ -334,8 +328,7 @@ class BlueAntStatus(BaseModel):
     phase: Optional[int] = Field(None, description="Phase number")
     active: Optional[bool] = Field(None, description="Is status active")
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
     @property
     def display_name(self) -> str:
@@ -376,5 +369,4 @@ class BlueAntPortfolio(BaseModel):
         None, alias="createdAt", description="Creation timestamp"
     )
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)

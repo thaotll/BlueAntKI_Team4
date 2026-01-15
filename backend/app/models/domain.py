@@ -59,7 +59,7 @@ class NormalizedProject(BaseModel):
     owner_name: Optional[str] = Field(None, description="Project owner/manager name")
     department_name: Optional[str] = Field(None, description="Department name (resolved from ID)")
     customer_name: Optional[str] = Field(None, description="Customer/client name (resolved from ID)")
-    
+
     # Project Classification
     type_name: Optional[str] = Field(None, description="Project type (resolved from ID)")
     priority_name: Optional[str] = Field(None, description="Priority level (resolved from ID)")

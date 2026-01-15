@@ -4,6 +4,9 @@ uvicorn[standard]>=0.34.0
 pydantic>=2.10.3
 pydantic-settings>=2.6.1
 
+# Type hint backport (for Python 3.9 compatibility with modern type syntax)
+eval_type_backport>=0.2.0
+
 # HTTP Client
 httpx>=0.28.1
 
