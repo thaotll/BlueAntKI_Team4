@@ -494,6 +494,8 @@ class OpenRouterService:
                 score.milestones_delayed = normalized.milestones_delayed
                 score.planned_effort_hours = normalized.planned_effort_hours
                 score.actual_effort_hours = normalized.actual_effort_hours
+                score.has_status_mismatch = normalized.has_status_mismatch
+                score.status_mismatch_reasons = normalized.status_mismatch_reasons
 
     async def full_analysis(
         self,

@@ -432,6 +432,113 @@ class DataNormalizer:
                                 f"nur {progress_percent:.0f}% Fortschritt"
                             )
 
+        # Check for status mismatch (status doesn't match actual data)
+        has_status_mismatch = False
+        status_mismatch_reasons = []
+
+        # Debug logging for status mismatch detection
+        logger.debug(
+            f"Status mismatch check for '{project.name}': "
+            f"status_color={status_color}, status_label={status_label}, "
+            f"is_completed={is_completed}, is_planning={is_planning}, "
+            f"milestones_delayed={milestones_delayed}"
+        )
+
+        # Case 1: Status says "planning" but data shows progress
+        if is_planning:
+            if milestones_completed > 0:
+                has_status_mismatch = True
+                status_mismatch_reasons.append(
+                    f"{milestones_completed} Meilenstein(e) bereits abgeschlossen"
+                )
+
+            if progress_percent > 10:
+                has_status_mismatch = True
+                status_mismatch_reasons.append(
+                    f"Bereits {progress_percent:.0f}% Fortschritt"
+                )
+
+            if actual_effort > 0 and planned_effort > 0:
+                effort_ratio = (actual_effort / planned_effort) * 100
+                if effort_ratio > 10:
+                    has_status_mismatch = True
+                    status_mismatch_reasons.append(
+                        f"Bereits {effort_ratio:.0f}% des Aufwands gebucht"
+                    )
+
+            start_date = project.effective_start_date
+            if start_date:
+                today = date.today()
+                days_since_start = (today - start_date).days
+                if days_since_start > 30:
+                    has_status_mismatch = True
+                    status_mismatch_reasons.append(
+                        f"Startdatum {days_since_start} Tage vergangen"
+                    )
+
+        # Case 2: Status is GREEN but data shows problems
+        if status_color == StatusColor.GREEN and not is_completed:
+            logger.debug(
+                f"Checking green status mismatch for '{project.name}': "
+                f"milestones_delayed={milestones_delayed}, progress={progress_percent:.0f}%"
+            )
+            # Green status but milestones are delayed
+            if milestones_delayed > 0:
+                has_status_mismatch = True
+                status_mismatch_reasons.append(
+                    f"{milestones_delayed} Meilenstein(e) verzögert bei grünem Status"
+                )
+                logger.info(f"Status mismatch detected for '{project.name}': {milestones_delayed} delayed milestones")
+
+            # Green status but no progress and project should have started
+            start_date = project.effective_start_date
+            if start_date:
+                today = date.today()
+                days_since_start = (today - start_date).days
+                if days_since_start > 14 and progress_percent == 0:
+                    has_status_mismatch = True
+                    status_mismatch_reasons.append(
+                        f"0% Fortschritt nach {days_since_start} Tagen bei grünem Status"
+                    )
+
+            # Green status but significant effort deviation
+            if effort_deviation > 20:
+                has_status_mismatch = True
+                status_mismatch_reasons.append(
+                    f"Aufwandsüberschreitung von {effort_deviation:.0f}% bei grünem Status"
+                )
+
+            # Green status but schedule delay
+            if delay_days > 7:
+                has_status_mismatch = True
+                status_mismatch_reasons.append(
+                    f"Terminverzug von {delay_days} Tagen bei grünem Status"
+                )
+
+        # Case 3: Status says "completed" but data shows it's NOT completed
+        if is_completed:
+            # Completed but no milestones reached when milestones exist
+            if len(milestones) > 0 and milestones_completed == 0:
+                has_status_mismatch = True
+                status_mismatch_reasons.append(
+                    f"Status 'Abgeschlossen', aber 0 von {len(milestones)} Meilensteinen erreicht"
+                )
+                logger.info(f"Status mismatch detected for '{project.name}': marked completed but 0/{len(milestones)} milestones")
+
+            # Completed but 0% progress
+            if progress_percent == 0 and (planned_effort > 0 or len(milestones) > 0):
+                has_status_mismatch = True
+                status_mismatch_reasons.append(
+                    f"Status 'Abgeschlossen', aber 0% Fortschritt"
+                )
+
+            # Completed but milestones are delayed
+            if milestones_delayed > 0:
+                has_status_mismatch = True
+                status_mismatch_reasons.append(
+                    f"Status 'Abgeschlossen', aber {milestones_delayed} Meilenstein(e) verzögert"
+                )
+
         # Resolve IDs to names via masterdata
         priority_name = self.get_priority_name(project.priority_id)
         type_name = self.get_type_name(project.type_id)
@@ -474,6 +581,8 @@ class DataNormalizer:
             objective_summary=self.clean_text(project.objective_memo),
             is_potentially_critical=is_critical,
             criticality_reasons=criticality_reasons,
+            has_status_mismatch=has_status_mismatch,
+            status_mismatch_reasons=status_mismatch_reasons,
             last_updated=project.updated_at,
         )
 

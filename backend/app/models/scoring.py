@@ -86,6 +86,12 @@ class ProjectScore(BaseModel):
     actual_effort_hours: float = Field(
         default=0.0, description="Actual effort in hours"
     )
+    has_status_mismatch: bool = Field(
+        default=False, description="Status doesn't match actual project data"
+    )
+    status_mismatch_reasons: List[str] = Field(
+        default_factory=list, description="Reasons for status mismatch"
+    )
 
     @property
     def average_score(self) -> float:

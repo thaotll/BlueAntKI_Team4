@@ -142,6 +142,14 @@ class NormalizedProject(BaseModel):
         default_factory=list,
         description="Reasons why project may be critical",
     )
+    has_status_mismatch: bool = Field(
+        default=False,
+        description="Flag indicating status doesn't match actual project data",
+    )
+    status_mismatch_reasons: List[str] = Field(
+        default_factory=list,
+        description="Reasons why status may be inconsistent with data",
+    )
 
     # Metadata
     last_updated: Optional[datetime] = Field(

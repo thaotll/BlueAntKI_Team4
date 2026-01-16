@@ -129,7 +129,20 @@ class PptxBuilder:
         presentation.slides.append(self._build_executive_summary_slide())
         
         # 3. One Radar Chart Slide per Project (with key insights)
-        for project_score in self.analysis.project_scores:
+        # Sort projects by status color: red first, then yellow, then green
+        def get_status_sort_key(status: str) -> int:
+            """Return sort key for status: red=0, yellow=1, green=2, gray=3"""
+            order = {"red": 0, "yellow": 1, "green": 2, "gray": 3}
+            return order.get(status or "gray", 4)
+
+        sorted_projects = sorted(
+            self.analysis.project_scores,
+            key=lambda p: (
+                get_status_sort_key(p.status_color),
+                -p.priority_score,  # Within same status, sort by priority descending
+            ),
+        )
+        for project_score in sorted_projects:
             presentation.slides.append(self._build_project_radar_slide(project_score))
         
         # 4. Risk Clusters
@@ -974,27 +987,13 @@ class PptxBuilder:
         # Check if project is completed for conditional logic
         is_completed = self._is_project_completed(project)
 
-        # Title with appropriate label (no emojis)
-        project_label = self._get_project_display_label(project)
-        title_text = project.project_name
-        
-        # Attach descriptive text instead of square-bracket tags
-        label_suffix = None
-        if project_label == "Kritisch":
-            label_suffix = "Kritisch"
-        elif project_label == "Review / Lessons Learned":
-            label_suffix = "Review / Lessons Learned"
-        elif project_label == "Daten-Fehler":
-            label_suffix = "Datenfehler festgestellt"
-        elif project_label == "Risikobehaftet":
-            label_suffix = "Risikobehaftet"
-        elif project_label == "Zeitkritisch":
-            label_suffix = "Zeitkritisch"
+        # Get ampel style (icon and color) based on project status
+        ampel_icon, ampel_color, ampel_type = self._get_project_ampel_style(project)
 
-        if label_suffix:
-            title_text = f"{title_text} - {label_suffix}"
+        # Build title with icon prefix only - no label suffixes (ampel icon shows status)
+        title_text = f"{ampel_icon} {project.project_name}"
 
-        shapes.append(self._create_slide_title(title_text[:60]))
+        shapes.append(self._create_slide_title(title_text[:62], color=ampel_color))
         
         # Data Warning Banner (if data quality issues exist)
         warning_text = self._get_data_warning_text(project)
@@ -1083,10 +1082,15 @@ class PptxBuilder:
             )
             shapes.append(bullet_box)
             
-            # Insight text
+            # Insight text - format with bold prefix if detailed level
+            if self.detail_level == "detailed":
+                insight_runs = self._format_insight_text(insight, bullet_style)
+            else:
+                insight_runs = [TextRun(text=insight)]
+            
             insight_box = TextBoxShape(
                 position=Position(x=6.4, y=y_pos, width=6.433, height=box_height),
-                paragraphs=[TextParagraph(runs=[TextRun(text=insight)], alignment="left")],
+                paragraphs=[TextParagraph(runs=insight_runs, alignment="left")],
                 default_style=bullet_style,
             )
             shapes.append(insight_box)
@@ -1274,13 +1278,13 @@ class PptxBuilder:
             contradiction_list = ", ".join(contradictions) if contradictions else "Inkonsistente Metriken"
             
             insights.append(
-                f"WIDERSPRÜCHLICHE DATENLAGE: Der Projektstatus in BlueAnt ist \"{status_info}\", "
+                f"Widersprüchliche Datenlage: Der Projektstatus in BlueAnt ist \"{status_info}\", "
                 f"aber die Metriken widersprechen dem massiv ({contradiction_list}). "
                 f"Wahrscheinlicher Status: GESTOPPT oder KRITISCH. "
                 f"Dieses Projekt darf NICHT als \"Erfolg\" gewertet werden!"
             )
             insights.append(
-                f"NOTWENDIGE AKTION: Manueller Status-Check durch Projektleiter anfordern. "
+                f"Notwendige Aktion: Manueller Status-Check durch Projektleiter anfordern. "
                 f"Die Daten in BlueAnt müssen korrigiert werden, bevor eine valide Bewertung möglich ist. "
                 f"Mögliche Ursachen: Projekt wurde abgebrochen/pausiert aber Status nicht aktualisiert, "
                 f"oder Datenerfassung wurde versäumt."
@@ -1288,42 +1292,42 @@ class PptxBuilder:
         elif is_completed:
             # Nur bei KONSISTENTEN abgeschlossenen Projekten das Erfolgs-Template verwenden
             insights.append(
-                f"PROJEKTSTATUS: ABGESCHLOSSEN – Das Projekt wurde erfolgreich beendet (Status: \"{status_info}\"). "
+                f"Projektstatus: ABGESCHLOSSEN – Das Projekt wurde erfolgreich beendet (Status: \"{status_info}\"). "
                 f"Alle definierten Ziele wurden erreicht und das Projekt ist formal abgeschlossen. "
                 f"Die nachfolgenden Bewertungen dienen der retrospektiven Analyse und dem Lessons-Learned-Prozess. "
                 f"Eine Projektabschluss-Dokumentation sollte erstellt werden."
             )
         elif project.progress_percent >= 90:
             insights.append(
-                f"PROJEKTSTATUS: ABSCHLUSSPHASE – Mit {project.progress_percent:.0f}% Fortschritt befindet sich das "
+                f"Projektstatus: ABSCHLUSSPHASE – Mit {project.progress_percent:.0f}% Fortschritt befindet sich das "
                 f"Projekt in der finalen Phase (Status: \"{status_info}\"). Der Fokus sollte auf Qualitätssicherung, "
                 f"Dokumentation und formaler Abnahme liegen. Change-Requests sollten kritisch geprüft werden, "
                 f"um den Projektabschluss nicht zu gefährden."
             )
         elif project.urgency.value >= 4 and project.risk.value >= 4:
             insights.append(
-                f"PROJEKTSTATUS: KRITISCH – Das Projekt weist sowohl hohe Dringlichkeit ({project.urgency.value}/5) "
+                f"Projektstatus: KRITISCH – Das Projekt weist sowohl hohe Dringlichkeit ({project.urgency.value}/5) "
                 f"als auch erhebliches Risiko ({project.risk.value}/5) auf (Status: \"{status_info}\"). "
                 f"Diese Kombination erfordert unmittelbare Management-Intervention, tägliche Statusberichte "
                 f"und zusätzliche Ressourcen. Ein dedizierter Eskalationspfad sollte etabliert werden."
             )
         elif project.urgency.value >= 4:
             insights.append(
-                f"PROJEKTSTATUS: ZEITKRITISCH – Mit Dringlichkeitsstufe {project.urgency.value}/5 steht das Projekt "
+                f"Projektstatus: ZEITKRITISCH – Mit Dringlichkeitsstufe {project.urgency.value}/5 steht das Projekt "
                 f"unter erheblichem Zeitdruck (Status: \"{status_info}\"). Termingerechte Fertigstellung erfordert "
                 f"priorisierte Ressourcen, parallele Arbeitspakete und beschleunigte Entscheidungsprozesse. "
                 f"Wöchentliche Fortschrittsreviews sind essentiell."
             )
         elif project.risk.value >= 4:
             insights.append(
-                f"PROJEKTSTATUS: RISIKOBEHAFTET – Die Risikobewertung von {project.risk.value}/5 signalisiert "
+                f"Projektstatus: RISIKOBEHAFTET – Die Risikobewertung von {project.risk.value}/5 signalisiert "
                 f"potenzielle Gefährdungen (Status: \"{status_info}\"). Aktives Risikomanagement, definierte "
                 f"Mitigationsmaßnahmen und regelmäßige Risk-Reviews sind erforderlich. "
                 f"Contingency-Pläne sollten vorbereitet werden."
             )
         else:
             insights.append(
-                f"PROJEKTSTATUS: STABIL – Mit Dringlichkeit {project.urgency.value}/5 und Risiko {project.risk.value}/5 "
+                f"Projektstatus: STABIL – Mit Dringlichkeit {project.urgency.value}/5 und Risiko {project.risk.value}/5 "
                 f"befindet sich das Projekt in kontrolliertem Zustand (Status: \"{status_info}\"). "
                 f"Standardmäßige Projektmanagement-Praktiken sind ausreichend. "
                 f"Regelmäßige Statusmeetings und proaktive Stakeholder-Kommunikation werden empfohlen."
@@ -1338,14 +1342,14 @@ class PptxBuilder:
             # Only show "all milestones completed" if actually true (100% completion)
             if completion_rate == 100:
                 insights.append(
-                    f"MEILENSTEIN-BILANZ: Alle {project.milestones_total} Meilensteine wurden erfolgreich "
+                    f"Meilenstein-Bilanz: Alle {project.milestones_total} Meilensteine wurden erfolgreich "
                     f"abgeschlossen (100% Erfüllungsgrad). Das Projekt hat alle definierten Etappenziele erreicht. "
                     f"Die Meilenstein-Planung hat sich als realistisch und umsetzbar erwiesen. "
                     f"Diese Erfahrungen sollten für künftige Projekte dokumentiert werden."
                 )
             elif project.milestones_delayed > 0:
                 insights.append(
-                    f"MEILENSTEIN-ANALYSE: Von {project.milestones_total} Meilensteinen wurden "
+                    f"Meilenstein-Analyse: Von {project.milestones_total} Meilensteinen wurden "
                     f"{project.milestones_completed} abgeschlossen ({completion_rate:.0f}%). "
                     f"Jedoch zeigen {project.milestones_delayed} Meilensteine Verzögerungen, was auf strukturelle "
                     f"Probleme hindeutet. Root-Cause-Analyse und Plananpassung werden empfohlen. "
@@ -1353,7 +1357,7 @@ class PptxBuilder:
                 )
             elif project.milestones_completed > 0:
                 insights.append(
-                    f"MEILENSTEIN-ANALYSE: Das Projekt zeigt positive Entwicklung mit {project.milestones_completed} "
+                    f"Meilenstein-Analyse: Das Projekt zeigt positive Entwicklung mit {project.milestones_completed} "
                     f"von {project.milestones_total} erreichten Meilensteinen ({completion_rate:.0f}% Erfüllungsgrad). "
                     f"Alle bisherigen Meilensteine wurden termingerecht abgeschlossen. "
                     f"Bei Beibehaltung dieses Tempos ist planmäßige Fertigstellung realistisch."
@@ -1361,7 +1365,7 @@ class PptxBuilder:
             else:
                 # 0 milestones completed - show factual status
                 insights.append(
-                    f"MEILENSTEIN-ANALYSE: Von {project.milestones_total} definierten Meilensteinen wurde "
+                    f"Meilenstein-Analyse: Von {project.milestones_total} definierten Meilensteinen wurde "
                     f"noch keiner als abgeschlossen markiert. "
                     f"Die Meilenstein-Erfassung sollte überprüft werden."
                 )
@@ -1370,21 +1374,21 @@ class PptxBuilder:
         if not is_completed and project.progress_percent > 0:
             if project.progress_percent >= 75:
                 insights.append(
-                    f"FORTSCHRITTSANALYSE: Mit {project.progress_percent:.0f}% Gesamtfortschritt befindet sich das "
+                    f"Fortschrittsanalyse: Mit {project.progress_percent:.0f}% Gesamtfortschritt befindet sich das "
                     f"Projekt in der finalen Umsetzungsphase. Der Fokus sollte nun auf Qualitätssicherung, "
                     f"Dokumentation und Abnahmevorbereitungen liegen. Change-Requests sollten kritisch geprüft "
                     f"werden, um Scope-Creep zu vermeiden und den Projektabschluss nicht zu gefährden."
                 )
             elif project.progress_percent >= 40:
                 insights.append(
-                    f"FORTSCHRITTSANALYSE: Bei einem aktuellen Fortschritt von {project.progress_percent:.0f}% "
+                    f"Fortschrittsanalyse: Bei einem aktuellen Fortschritt von {project.progress_percent:.0f}% "
                     f"befindet sich das Projekt in der aktiven Umsetzungsphase. Regelmäßige Statusprüfungen "
                     f"und proaktives Stakeholder-Management sind in dieser Phase besonders wichtig. "
                     f"Abhängigkeiten zu anderen Projekten sollten kontinuierlich überwacht werden."
                 )
             else:
                 insights.append(
-                    f"FORTSCHRITTSANALYSE: Mit {project.progress_percent:.0f}% Fortschritt befindet sich das "
+                    f"Fortschrittsanalyse: Mit {project.progress_percent:.0f}% Fortschritt befindet sich das "
                     f"Projekt noch in einer frühen Phase. Dies ist der optimale Zeitpunkt, um Scope und "
                     f"Anforderungen final zu validieren, Ressourcenplanung zu optimieren und klare "
                     f"Kommunikationswege mit allen Stakeholdern zu etablieren."
@@ -1396,7 +1400,7 @@ class PptxBuilder:
             remaining_budget = project.planned_effort_hours - project.actual_effort_hours
             if variance > 20:
                 insights.append(
-                    f"RESSOURCENANALYSE KRITISCH: Der aktuelle Aufwand von {project.actual_effort_hours:.0f} Stunden "
+                    f"Ressourcenanalyse kritisch: Der aktuelle Aufwand von {project.actual_effort_hours:.0f} Stunden "
                     f"übersteigt die ursprüngliche Planung von {project.planned_effort_hours:.0f} Stunden um "
                     f"{variance:.0f}%. Diese signifikante Abweichung erfordert eine sofortige Budget-Review, "
                     f"Identifikation der Ursachen und ggf. eine Neuverhandlung des Projektumfangs mit dem Auftraggeber. "
@@ -1404,7 +1408,7 @@ class PptxBuilder:
                 )
             elif variance > 0:
                 insights.append(
-                    f"RESSOURCENANALYSE: Der bisherige Aufwand von {project.actual_effort_hours:.0f} Stunden liegt "
+                    f"Ressourcenanalyse: Der bisherige Aufwand von {project.actual_effort_hours:.0f} Stunden liegt "
                     f"leicht über der Planung von {project.planned_effort_hours:.0f} Stunden (+{variance:.0f}%). "
                     f"Diese moderate Abweichung sollte beobachtet werden. Es wird empfohlen, die verbleibenden "
                     f"Arbeitspakete kritisch zu prüfen und ggf. Effizienzmaßnahmen zu identifizieren, "
@@ -1412,7 +1416,7 @@ class PptxBuilder:
                 )
             else:
                 insights.append(
-                    f"RESSOURCENANALYSE POSITIV: Mit {project.actual_effort_hours:.0f} von {project.planned_effort_hours:.0f} "
+                    f"Ressourcenanalyse positiv: Mit {project.actual_effort_hours:.0f} von {project.planned_effort_hours:.0f} "
                     f"geplanten Stunden verbraucht, liegt das Projekt im oder unter dem Budget. "
                     f"Verbleibendes Budget: {abs(remaining_budget):.0f} Stunden. Diese effiziente Projektdurchführung "
                     f"schafft Puffer für unvorhergesehene Anforderungen oder ermöglicht Kosteneinsparungen."
@@ -1421,7 +1425,7 @@ class PptxBuilder:
         # 4. Strategische Einordnung (Komplexität & Wichtigkeit)
         if project.complexity.value >= 4 and project.importance.value >= 4:
             insights.append(
-                f"STRATEGISCHE EINORDNUNG: Als Projekt mit hoher Komplexität ({project.complexity.value}/5) und "
+                f"Strategische Einordnung: Als Projekt mit hoher Komplexität ({project.complexity.value}/5) und "
                 f"hoher strategischer Bedeutung ({project.importance.value}/5) handelt es sich um ein "
                 f"unternehmenskritisches Vorhaben. Senior-Management-Sponsorship, dedizierte Top-Ressourcen und "
                 f"regelmäßige Steering-Committee-Reviews sind erforderlich. Risiken bei diesem Projekt haben "
@@ -1429,21 +1433,21 @@ class PptxBuilder:
             )
         elif project.complexity.value >= 4:
             insights.append(
-                f"KOMPLEXITÄTSANALYSE: Mit einer Komplexitätsbewertung von {project.complexity.value}/5 erfordert "
+                f"Komplexitätsanalyse: Mit einer Komplexitätsbewertung von {project.complexity.value}/5 erfordert "
                 f"dieses Projekt besondere technische Expertise und strukturiertes Vorgehen. Klare Architektur-"
                 f"Entscheidungen, erfahrene Ressourcen und ein robustes Change-Management sind erfolgskritisch. "
                 f"Technische Reviews sollten regelmäßig durchgeführt werden."
             )
         elif project.importance.value >= 4:
             insights.append(
-                f"STRATEGISCHE BEDEUTUNG: Mit einer Wichtigkeitsbewertung von {project.importance.value}/5 hat "
+                f"Strategische Bedeutung: Mit einer Wichtigkeitsbewertung von {project.importance.value}/5 hat "
                 f"dieses Projekt direkten Einfluss auf die Erreichung von Unternehmenszielen. Stakeholder auf "
                 f"Führungsebene sollten regelmäßig informiert werden. Eine priorisierte Ressourcenzuweisung "
                 f"und proaktive Risikokommunikation sind essenziell für den Projekterfolg."
             )
         else:
             insights.append(
-                f"EINORDNUNG: Mit Komplexität {project.complexity.value}/5 und Wichtigkeit {project.importance.value}/5 "
+                f"Einordnung: Mit Komplexität {project.complexity.value}/5 und Wichtigkeit {project.importance.value}/5 "
                 f"handelt es sich um ein Standardprojekt ohne außergewöhnliche Anforderungen. Reguläre "
                 f"Projektmanagement-Methoden sind angemessen. Das Projekt kann mit Standardressourcen und "
                 f"-prozessen erfolgreich umgesetzt werden."
@@ -1452,7 +1456,7 @@ class PptxBuilder:
         # 5. Datenqualität und Bewertungssicherheit
         if project.data_quality.value <= 2:
             insights.append(
-                f"DATENQUALITÄTSHINWEIS: Die Bewertung dieses Projekts basiert auf einer eingeschränkten "
+                f"Datenqualitätshinweis: Die Bewertung dieses Projekts basiert auf einer eingeschränkten "
                 f"Datenbasis (Qualitätsstufe {project.data_quality.value}/5). Die hier getroffenen Aussagen "
                 f"sollten daher mit Vorsicht interpretiert werden. Es wird dringend empfohlen, die Datenlage "
                 f"zu verbessern, um fundierte Entscheidungen treffen zu können. Fehlende Informationen "
@@ -1460,7 +1464,7 @@ class PptxBuilder:
             )
         elif project.data_quality.value >= 4:
             insights.append(
-                f"BEWERTUNGSSICHERHEIT: Die vorliegende Analyse basiert auf einer soliden Datenbasis "
+                f"Bewertungssicherheit: Die vorliegende Analyse basiert auf einer soliden Datenbasis "
                 f"(Qualitätsstufe {project.data_quality.value}/5). Die getroffenen Aussagen und Empfehlungen "
                 f"sind belastbar und können als Grundlage für Management-Entscheidungen herangezogen werden. "
                 f"Regelmäßige Datenaktualisierung sichert die Aussagekraft auch für zukünftige Bewertungen."
@@ -1470,7 +1474,7 @@ class PptxBuilder:
         # Guard: Completed projects should never show escalation language
         if project.is_critical and not is_completed and len(insights) < 6:
             insights.append(
-                f"KRITISCHES PROJEKT: Dieses Projekt wurde als kritisch eingestuft und erfordert "
+                f"Kritisches Projekt: Dieses Projekt wurde als kritisch eingestuft und erfordert "
                 f"umgehende Management-Attention. Regelmäßige Statusberichte, dedizierte "
                 f"Steering-Meetings und klare Verantwortlichkeiten werden empfohlen. Alle Entscheidungen "
                 f"sollten dokumentiert werden."
@@ -1484,20 +1488,20 @@ class PptxBuilder:
                 if abs(variance) > 10:
                     variance_text = "über" if variance > 0 else "unter"
                     insights.append(
-                        f"LESSONS LEARNED – PLANUNG: Die Aufwandsabweichung von {abs(variance):.0f}% ({variance_text} Plan) "
+                        f"Lessons Learned – Planung: Die Aufwandsabweichung von {abs(variance):.0f}% ({variance_text} Plan) "
                         f"sollte für die Kalkulation ähnlicher Projekte berücksichtigt werden. "
                         f"Eine Analyse der Abweichungsursachen unterstützt präzisere Schätzungen in Zukunft."
                     )
             
             if len(insights) < 5:
                 insights.append(
-                    f"EMPFEHLUNG: Projektabschluss-Dokumentation erstellen und Erfahrungen im Team teilen. "
+                    f"Empfehlung: Projektabschluss-Dokumentation erstellen und Erfahrungen im Team teilen. "
                     f"Best Practices und Verbesserungspotenziale sollten für künftige Projekte festgehalten werden."
                 )
         
         # Fallback: Ausführliche Zusammenfassung
         if len(insights) < 5 and project.summary:
-            insights.append(f"PROJEKTKONTEXT: {project.summary}")
+            insights.append(f"Projektkontext: {project.summary}")
         
         return insights[:5]  # Max 5 sehr ausführliche Stichpunkte
 
@@ -1531,17 +1535,55 @@ class PptxBuilder:
         # Return empty string - status is shown via colors in charts
         return ""
 
+    def _get_project_ampel_style(self, project: ProjectScore) -> tuple:
+        """
+        Get traffic light style for project header.
+        Returns: (icon, color, status_type)
+        - Positive (green): ✅
+        - Warning (yellow): ⚠️
+        - Critical (red): ❌
+        """
+        # Critical projects: RED
+        if project.is_critical:
+            return ("❌", self.tokens.RED, "critical")
+
+        # Check for status mismatch (yellow warning)
+        if getattr(project, 'has_status_mismatch', False):
+            return ("⚠️", self.tokens.YELLOW, "warning")
+
+        # Check status color
+        status_color = getattr(project, 'status_color', 'gray')
+        if status_color == "red":
+            return ("❌", self.tokens.RED, "critical")
+        elif status_color == "yellow":
+            return ("⚠️", self.tokens.YELLOW, "warning")
+
+        # High risk projects: YELLOW
+        if project.risk.value >= 4:
+            return ("⚠️", self.tokens.YELLOW, "warning")
+
+        # High urgency projects: YELLOW
+        if project.urgency.value >= 4:
+            return ("⚠️", self.tokens.YELLOW, "warning")
+
+        # Completed or positive projects: GREEN
+        if self._is_project_completed(project):
+            return ("✅", self.tokens.GREEN, "positive")
+
+        # Default positive (green/gray status without issues)
+        return ("✅", self.tokens.GREEN, "positive")
+
     # =========================================================================
     # Helper Methods
     # =========================================================================
 
-    def _create_slide_title(self, text: str) -> TextBoxShape:
-        """Create a standardized slide title."""
+    def _create_slide_title(self, text: str, color: Optional[RgbColor] = None) -> TextBoxShape:
+        """Create a standardized slide title with optional custom color."""
         title_style = TextStyle(
             font_name=self.tokens.FONT_FAMILY,
             font_size_pt=self.tokens.HEADING_SIZE,
             bold=True,
-            color=self.tokens.PRIMARY,
+            color=color if color else self.tokens.PRIMARY,
         )
 
         return TextBoxShape(
@@ -1803,3 +1845,67 @@ class PptxBuilder:
         """Get the appropriate warning text for a project's data issues (no emojis)."""
         # Skip all warning banners - data quality info is in the analysis text
         return None
+
+    def _format_insight_text(self, text: str, default_style: TextStyle) -> List[TextRun]:
+        """
+        Format insight text by making the part before the colon bold and converting
+        uppercase prefixes to normal case.
+        
+        Example: "WIDERSPRÜCHLICHE DATENLAGE: ..." becomes 
+        "Widersprüchliche Datenlage: ..." with "Widersprüchliche Datenlage:" in bold.
+        """
+        if ":" not in text:
+            # No colon, return as single run
+            return [TextRun(text=text)]
+        
+        # Split at first colon
+        parts = text.split(":", 1)
+        prefix = parts[0].strip()
+        suffix = parts[1].strip() if len(parts) > 1 else ""
+        
+        # Convert uppercase prefix to title case (first letter uppercase, rest lowercase)
+        # But preserve acronyms and special formatting
+        prefix_normalized = self._normalize_prefix(prefix)
+        
+        # Create bold run for prefix
+        bold_style = TextStyle(
+            font_name=default_style.font_name,
+            font_size_pt=default_style.font_size_pt,
+            bold=True,
+            color=default_style.color,
+        )
+        bold_run = TextRun(text=f"{prefix_normalized}:", style=bold_style)
+        
+        # Create normal run for suffix
+        if suffix:
+            normal_run = TextRun(text=f" {suffix}")
+            return [bold_run, normal_run]
+        else:
+            return [bold_run]
+    
+    def _normalize_prefix(self, prefix: str) -> str:
+        """
+        Convert uppercase prefix to title case while preserving spaces and hyphens.
+        
+        Examples:
+        - "WIDERSPRÜCHLICHE DATENLAGE" -> "Widersprüchliche Datenlage"
+        - "PROJEKTSTATUS" -> "Projektstatus"
+        - "MEILENSTEIN-BILANZ" -> "Meilenstein-Bilanz"
+        - "RESSOURCENANALYSE KRITISCH" -> "Ressourcenanalyse kritisch"
+        """
+        # Split by spaces and hyphens, keeping the delimiters
+        parts = re.split(r'([\s\-])', prefix)
+        normalized_parts = []
+        
+        for part in parts:
+            if not part.strip():  # Preserve spaces/hyphens
+                normalized_parts.append(part)
+            elif part.isupper() and len(part) > 1:
+                # Convert to title case: first letter uppercase, rest lowercase
+                # This works correctly with Umlauts (e.g., "WIDERSPRÜCHLICHE" -> "Widersprüchliche")
+                normalized_parts.append(part.capitalize())
+            else:
+                # Already mixed case or single char, keep as is
+                normalized_parts.append(part)
+        
+        return "".join(normalized_parts)

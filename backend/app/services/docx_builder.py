@@ -192,17 +192,32 @@ class DocxBuilder:
         para_idx = 0
         image_idx = 0
 
-        for project in self.analysis.project_scores:
-            # Project heading with critical indicator
-            project_title = project.project_name
-            if project.is_critical:
-                project_title = f"{project.project_name} - {self._get_label('critical_label')}"
-            
+        # Sort projects by status color: red first, then yellow, then green
+        def get_status_sort_key(status: str) -> int:
+            """Return sort key for status: red=0, yellow=1, green=2, gray=3"""
+            order = {"red": 0, "yellow": 1, "green": 2, "gray": 3}
+            return order.get(status or "gray", 4)
+
+        sorted_projects = sorted(
+            self.analysis.project_scores,
+            key=lambda p: (
+                get_status_sort_key(p.status_color),
+                -p.priority_score,  # Within same status, sort by priority descending
+            ),
+        )
+
+        for project in sorted_projects:
+            # Get ampel style (icon and color) based on project status
+            ampel_icon, ampel_color, ampel_type = self._get_project_ampel_style(project)
+
+            # Project heading with ampel icon only - no label suffixes (icon shows status)
+            project_title = f"{ampel_icon} {project.project_name}"
+
             section.paragraphs.append(
                 DocxParagraph.simple(
                     f"\n{project_title}",
                     bold=True,
-                    color=self.tokens.STATUS_RED if project.is_critical else self.tokens.ACCENT,
+                    color=ampel_color,
                 )
             )
             section.content_order.append(("paragraph", para_idx))
@@ -320,6 +335,40 @@ class DocxBuilder:
             "gray": self.tokens.STATUS_GRAY,
         }
         return status_colors.get(status.lower(), self.tokens.STATUS_GRAY)
+
+    def _get_project_ampel_style(self, project: ProjectScore) -> tuple:
+        """
+        Get traffic light style for project header.
+        Returns: (icon, color, status_type)
+        - Positive (green): ✅
+        - Warning (yellow): ⚠️
+        - Critical (red): ❌
+        """
+        # Critical projects: RED
+        if project.is_critical:
+            return ("❌", self.tokens.STATUS_RED, "critical")
+
+        # Check for status mismatch (yellow warning)
+        if getattr(project, 'has_status_mismatch', False):
+            return ("⚠️", self.tokens.STATUS_YELLOW, "warning")
+
+        # Check status color
+        status_color = getattr(project, 'status_color', 'gray')
+        if status_color == "red":
+            return ("❌", self.tokens.STATUS_RED, "critical")
+        elif status_color == "yellow":
+            return ("⚠️", self.tokens.STATUS_YELLOW, "warning")
+
+        # High risk projects: YELLOW
+        if project.risk.value >= 4:
+            return ("⚠️", self.tokens.STATUS_YELLOW, "warning")
+
+        # High urgency projects: YELLOW
+        if project.urgency.value >= 4:
+            return ("⚠️", self.tokens.STATUS_YELLOW, "warning")
+
+        # Default positive (green)
+        return ("✅", self.tokens.STATUS_GREEN, "positive")
 
     def _get_status_symbol(self, status: str) -> str:
         """Get symbol for status."""

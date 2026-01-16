@@ -117,7 +117,7 @@ Antworte NUR mit einem validen JSON-Objekt im folgenden Format (keine Markdown-C
       }},
       "is_critical": true/false,
       "summary": "Kurze Gesamteinschätzung (2-3 Sätze)",
-      "detailed_analysis": "Ausführliche narrative Analyse des Projekts: Was ist die aktuelle Situation? Welche Probleme gibt es und warum? Was sind die Konsequenzen? Was sollte getan werden? (5-8 Sätze, fließender Text). WICHTIG: Variiere die Satzanfänge aktiv - vermeide Wiederholungen wie 'Das Projekt...', 'Es ist...', 'Es gibt...'. Nutze verschiedene Satzstrukturen und Einleitungen."
+      "detailed_analysis": "EINZIGARTIGE, projektspezifische Analyse (5-8 Sätze). KRITISCH: Jedes Projekt MUSS einen völlig anderen Text haben! Nenne konkrete Details wie Projektnamen, spezifische Zahlen (Fortschritt %, Meilensteine, Aufwand), beteiligte Abteilungen oder Systeme. Vermeide generische Phrasen die auf jedes Projekt passen könnten. Starte JEDEN Text anders - nutze den Projektnamen, eine Zahl, ein Adjektiv oder eine konkrete Situation als Einstieg."
     }}
   ]
 }}
@@ -126,8 +126,13 @@ Wichtig:
 - Gib für JEDES Projekt eine vollständige, tiefgehende Bewertung ab
 - Nutze die volle Skala 1-5, nicht nur Extremwerte
 - Die detailed_analysis soll als Fließtext formuliert sein, nicht als Aufzählung
-- Variiere die Satzanfänge aktiv - vermeide repetitive Strukturen wie "Das Projekt...", "Es ist...", "Es gibt..." am Satzanfang
-- Nutze verschiedene Einleitungen: Adverbiale, Partizipialkonstruktionen, Relativsätze, Fragesätze, direkte Aussagen
+- KRITISCH FÜR TEXTVARIATION:
+  * JEDES Projekt MUSS einen KOMPLETT ANDEREN Text in detailed_analysis haben
+  * NIEMALS denselben Satz oder dieselbe Phrase in mehreren Projekten verwenden
+  * Starte jeden Text mit einem EINZIGARTIGEN Einstieg (Projektname, konkrete Zahl, spezifische Situation)
+  * Nenne projektspezifische Details: exakte Prozentzahlen, Meilensteinnamen, beteiligte Teams
+  * Vermeide generische Phrasen wie "steht vor Herausforderungen", "erfordert Aufmerksamkeit"
+- Nutze verschiedene Satzstrukturen pro Projekt
 - Begründungen sollen spezifisch auf die Projektdaten eingehen und konkrete Zahlen/Fakten nennen
 - Identifiziere Widersprüche in den Daten und benenne diese explizit
 - KRITISCH: Antworte NUR mit validem JSON! Keine Markdown-Codeblöcke, kein Text davor oder danach

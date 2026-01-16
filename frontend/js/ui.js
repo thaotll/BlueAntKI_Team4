@@ -248,7 +248,22 @@ export function renderSelectedPortfolio(portfolio, container) {
  */
 export function renderAnalysisResults(analysis, container, onDownloadReport, onDownloadWordReport, onDownloadDetailedReport) {
     const { project_scores, executive_summary, recommendations } = analysis;
-    
+
+    // Sort projects by priority: critical first, then status mismatch, then by status color
+    const sortedProjects = [...project_scores].sort((a, b) => {
+        // Priority score: higher = more important (shown first)
+        const getPriority = (p) => {
+            let score = 0;
+            if (p.is_critical) score += 100;
+            if (p.has_status_mismatch) score += 50;
+            if (p.status_color === 'red') score += 30;
+            if (p.status_color === 'yellow') score += 20;
+            // Gray and green have lowest priority
+            return score;
+        };
+        return getPriority(b) - getPriority(a);
+    });
+
     // Show all recommendations
     const allRecommendations = recommendations || [];
 
@@ -310,7 +325,7 @@ export function renderAnalysisResults(analysis, container, onDownloadReport, onD
             <h3 class="section-title">Projektanalysen im Detail</h3>
         </div>
         <div class="projects-list">
-            ${project_scores.map((p, idx) => renderProjectDetailCard(p, idx)).join('')}
+            ${sortedProjects.map((p, idx) => renderProjectDetailCard(p, idx)).join('')}
         </div>
 
         <!-- Recommendations -->
@@ -354,8 +369,8 @@ export function renderAnalysisResults(analysis, container, onDownloadReport, onD
         });
     }
 
-    // Bind speak buttons for each project
-    project_scores.forEach((project, index) => {
+    // Bind speak buttons for each project (use sortedProjects for correct order)
+    sortedProjects.forEach((project, index) => {
         const speakBtn = document.getElementById(`speak-project-${index}`);
         if (speakBtn) {
             const textToSpeak = project.detailed_analysis || project.summary || '';
@@ -373,8 +388,15 @@ export function renderAnalysisResults(analysis, container, onDownloadReport, onD
  * @param {number} index - Index for unique ID generation
  */
 function renderProjectDetailCard(project, index) {
-    const statusClass = project.status_color || 'gray';
+    const originalStatus = project.status_color || 'gray';
+    // Override status to yellow if there's a mismatch
+    const hasStatusMismatch = project.has_status_mismatch || false;
+    const statusClass = hasStatusMismatch ? 'yellow' : originalStatus;
+    // Map status colors to German labels
+    const statusLabels = { 'green': 'grün', 'yellow': 'gelb', 'red': 'rot', 'gray': 'grau' };
+    const statusLabel = hasStatusMismatch ? 'gelb' : (statusLabels[originalStatus] || originalStatus);
     const isCritical = project.is_critical;
+    const statusMismatchReasons = project.status_mismatch_reasons || [];
     const rawProjectName = project.project_name || '';
     const sanitizedProjectName = sanitizeProjectName(rawProjectName);
     
@@ -397,7 +419,7 @@ function renderProjectDetailCard(project, index) {
     const hasTextToSpeak = analysisText.length > 0;
 
     return `
-        <div class="card project-detail-card ${isCritical ? 'project-critical' : ''}" data-id="${project.project_id}">
+        <div class="card project-detail-card ${isCritical ? 'project-critical' : ''} ${hasStatusMismatch ? 'project-status-mismatch' : ''}" data-id="${project.project_id}">
             <div class="project-detail-header">
                 <div class="project-title-row">
                     <h4 class="project-name ${isCritical ? 'critical-name' : ''}">${escapeHtml(sanitizedProjectName)}${isCritical ? ' - Kritisch' : ''}</h4>
@@ -410,7 +432,7 @@ function renderProjectDetailCard(project, index) {
                                 </svg>
                             </button>
                         ` : ''}
-                        <span class="project-status ${statusClass}">${statusClass}</span>
+                        <span class="project-status ${statusClass}" ${hasStatusMismatch ? `title="${escapeHtml(statusMismatchReasons.join(', '))}"` : ''}>${statusLabel}</span>
                     </div>
                 </div>
                 <div class="project-info-line">${infoParts.join(' | ')}</div>
