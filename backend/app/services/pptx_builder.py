@@ -129,16 +129,18 @@ class PptxBuilder:
         presentation.slides.append(self._build_executive_summary_slide())
         
         # 3. One Radar Chart Slide per Project (with key insights)
-        # Sort projects by status color: red first, then yellow, then green
-        def get_status_sort_key(status: str) -> int:
-            """Return sort key for status: red=0, yellow=1, green=2, gray=3"""
-            order = {"red": 0, "yellow": 1, "green": 2, "gray": 3}
-            return order.get(status or "gray", 4)
+        # Sort projects by actual ampel color (critical/warning/positive)
+        # This ensures sorting matches the displayed icon color
+        def get_ampel_sort_key(project: ProjectScore) -> int:
+            """Return sort key based on actual ampel style: critical=0, warning=1, positive=2"""
+            _, _, ampel_type = self._get_project_ampel_style(project)
+            order = {"critical": 0, "warning": 1, "positive": 2}
+            return order.get(ampel_type, 3)
 
         sorted_projects = sorted(
             self.analysis.project_scores,
             key=lambda p: (
-                get_status_sort_key(p.status_color),
+                get_ampel_sort_key(p),
                 -p.priority_score,  # Within same status, sort by priority descending
             ),
         )
