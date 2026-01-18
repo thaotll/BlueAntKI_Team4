@@ -7,8 +7,8 @@ let currentAudio = null;
 let isSpeaking = false;
 let currentButtonId = null;
 
-// API base URL
-const API_BASE = 'http://localhost:8000';
+// Use config from config.js if available (Docker), otherwise fallback to localhost
+const API_BASE = (window.APP_CONFIG && window.APP_CONFIG.API_BASE) || 'http://localhost:8000';
 
 /**
  * Speak text using backend edge-tts (high-quality German voices)

@@ -1,0 +1,49 @@
+# ===========================================
+# BlueAnt Portfolio Analyzer - Einfache Installation
+# ===========================================
+#
+# Anleitung:
+# 1. Diese Datei speichern als: docker-compose.yml
+# 2. Terminal öffnen und ausführen:
+#    docker-compose up -d
+# 3. Browser öffnen: http://localhost
+#
+# ===========================================
+
+version: '3.8'
+
+services:
+  backend:
+    image: maxbudde/blueant-backend:latest
+    container_name: blueant-backend
+    restart: unless-stopped
+    environment:
+      - APP_ENV=production
+      - APP_PORT=8000
+      - LOG_LEVEL=info
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - blueant-network
+
+  frontend:
+    image: maxbudde/blueant-frontend:latest
+    container_name: blueant-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - blueant-network
+
+networks:
+  blueant-network:
+    driver: bridge

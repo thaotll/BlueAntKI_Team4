@@ -5,7 +5,8 @@
 
 import { encrypt, decrypt, isCryptoAvailable } from './crypto.js';
 
-const API_BASE = 'http://localhost:8000';
+// Use config from config.js if available (Docker), otherwise fallback to localhost
+const API_BASE = (window.APP_CONFIG && window.APP_CONFIG.API_BASE) || 'http://localhost:8000';
 const CONFIG_KEY = 'portfolio-analyzer-config';
 const STORAGE_MODE_KEY = 'portfolio-analyzer-storage-mode';
 

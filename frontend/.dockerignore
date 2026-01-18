@@ -1,0 +1,18 @@
+# Git
+.git/
+.gitignore
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Documentation
+*.md
+docs/
+
+# Docker files (not needed in image)
+Dockerfile
+.dockerignore
+docker-compose.yml

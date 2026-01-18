@@ -10,7 +10,10 @@
       "Bash(git commit:*)",
       "Bash(/Users/maxbudde/BlueAntKI_Team4/backend/venv/bin/pip install edge-tts)",
       "Bash(find:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(docker login:*)",
+      "Bash(docker build:*)",
+      "Bash(docker push:*)"
     ]
   }
 }
